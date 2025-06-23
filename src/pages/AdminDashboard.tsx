@@ -1,49 +1,32 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  BarChart3, 
-  Users, 
-  Globe, 
-  TrendingUp,
-  LogOut,
-  Home,
-  Bell,
-  Send
-} from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Link } from 'react-router-dom';
 
 interface Project {
-  id?: string;
+  id: string;
   title: string;
   description: string;
   technologies: string[];
-  github_url: string;
-  demo_url: string;
-  image_url: string;
-  code_content: string;
+  html_content: string;
+  css_content?: string;
+  js_content?: string;
   is_featured: boolean;
 }
 
 interface Notification {
-  id?: string;
+  id: string;
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning';
@@ -54,660 +37,469 @@ interface Notification {
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isCreatingNotification, setIsCreatingNotification] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const { user, isAdmin } = useAuth();
+  const [showNotificationForm, setShowNotificationForm] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Mock analytics data
-  const analytics = {
-    totalVisits: 1250,
-    todayVisits: 45,
-    topPages: [],
-    recentVisits: []
+  // Project form state
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [technologies, setTechnologies] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
+  const [cssContent, setCssContent] = useState('');
+  const [jsContent, setJsContent] = useState('');
+  const [isFeatured, setIsFeatured] = useState(false);
+
+  // Notification form state
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'info' | 'success' | 'warning'>('info');
+  const [expirationHours, setExpirationHours] = useState('24');
+
+  useEffect(() => {
+    loadProjects();
+    loadNotifications();
+  }, []);
+
+  const loadProjects = () => {
+    const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
+    setProjects(existingProjects);
+  };
+
+  const loadNotifications = () => {
+    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+    setNotifications(existingNotifications);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/');
+    navigate('/admin');
   };
 
-  const uploadImage = async (file: File): Promise<string> => {
-    // Since we don't have proper storage setup, we'll create a data URL
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.readAsDataURL(file);
-    });
+  const resetProjectForm = () => {
+    setTitle('');
+    setDescription('');
+    setTechnologies('');
+    setHtmlContent('');
+    setCssContent('');
+    setJsContent('');
+    setIsFeatured(false);
+    setEditingProject(null);
+    setShowProjectForm(false);
   };
 
-  const saveProject = async () => {
-    if (!editingProject) return;
-
-    try {
-      setLoading(true);
-      
-      let imageUrl = editingProject.image_url;
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
-      }
-
-      const projectData = {
-        ...editingProject,
-        image_url: imageUrl,
-        technologies: editingProject.technologies.filter(tech => tech.trim() !== '')
-      };
-
-      const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-      
-      if (isCreating) {
-        const newProject = { ...projectData, id: Date.now().toString() };
-        const updatedProjects = [...existingProjects, newProject];
-        localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
-        setProjects(updatedProjects);
-      } else {
-        const updatedProjects = existingProjects.map((p: Project) => 
-          p.id === editingProject.id ? projectData : p
-        );
-        localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
-        setProjects(updatedProjects);
-      }
-
-      setEditingProject(null);
-      setIsCreating(false);
-      setImageFile(null);
-      
-      toast({
-        title: "نجح الحفظ",
-        description: `تم ${isCreating ? 'إنشاء' : 'تحديث'} المشروع بنجاح!`,
-      });
-    } catch (error: any) {
+  const handleProjectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!title.trim() || !description.trim() || !htmlContent.trim()) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: "يرجى ملء جميع الحقول المطلوبة",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
 
-  const deleteProject = async (id: string) => {
-    try {
-      const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-      const updatedProjects = existingProjects.filter((p: Project) => p.id !== id);
+    const projectData: Project = {
+      id: editingProject?.id || Date.now().toString(),
+      title: title.trim(),
+      description: description.trim(),
+      technologies: technologies.split(',').map(tech => tech.trim()).filter(tech => tech),
+      html_content: htmlContent,
+      css_content: cssContent || undefined,
+      js_content: jsContent || undefined,
+      is_featured: isFeatured,
+    };
+
+    const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
+    
+    if (editingProject) {
+      const updatedProjects = existingProjects.map((project: Project) =>
+        project.id === editingProject.id ? projectData : project
+      );
       localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
       setProjects(updatedProjects);
-      
       toast({
-        title: "تم الحذف",
-        description: "تم حذف المشروع بنجاح!",
+        title: "تم التحديث",
+        description: "تم تحديث المشروع بنجاح",
       });
-    } catch (error: any) {
+    } else {
+      const updatedProjects = [...existingProjects, projectData];
+      localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
+      setProjects(updatedProjects);
       toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
+        title: "تم الإنشاء",
+        description: "تم إنشاء المشروع بنجاح",
       });
     }
+
+    resetProjectForm();
   };
 
-  const saveNotification = async () => {
-    if (!editingNotification) return;
-
-    try {
-      setLoading(true);
-      
-      const notificationData = {
-        ...editingNotification,
-        created_at: isCreatingNotification ? new Date().toISOString() : editingNotification.created_at
-      };
-
-      const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-      
-      if (isCreatingNotification) {
-        const newNotification = { ...notificationData, id: Date.now().toString() };
-        const updatedNotifications = [...existingNotifications, newNotification];
-        localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
-        setNotifications(updatedNotifications);
-      } else {
-        const updatedNotifications = existingNotifications.map((n: Notification) => 
-          n.id === editingNotification.id ? notificationData : n
-        );
-        localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
-        setNotifications(updatedNotifications);
-      }
-
-      setEditingNotification(null);
-      setIsCreatingNotification(false);
-      
-      toast({
-        title: "نجح الحفظ",
-        description: `تم ${isCreatingNotification ? 'إنشاء' : 'تحديث'} التحديث بنجاح!`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setTitle(project.title);
+    setDescription(project.description);
+    setTechnologies(project.technologies.join(', '));
+    setHtmlContent(project.html_content);
+    setCssContent(project.css_content || '');
+    setJsContent(project.js_content || '');
+    setIsFeatured(project.is_featured);
+    setShowProjectForm(true);
   };
 
-  const deleteNotification = async (id: string) => {
-    try {
-      const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-      const updatedNotifications = existingNotifications.filter((n: Notification) => n.id !== id);
-      localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
-      setNotifications(updatedNotifications);
-      
-      toast({
-        title: "تم الحذف",
-        description: "تم حذف التحديث بنجاح!",
-      });
-    } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const startCreating = () => {
-    setEditingProject({
-      title: '',
-      description: '',
-      technologies: [''],
-      github_url: '',
-      demo_url: '',
-      image_url: '',
-      code_content: '',
-      is_featured: false
-    });
-    setIsCreating(true);
-  };
-
-  const startCreatingNotification = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    setEditingNotification({
-      title: '',
-      message: '',
-      type: 'info',
-      expires_at: tomorrow.toISOString().split('T')[0],
-      created_at: new Date().toISOString()
-    });
-    setIsCreatingNotification(true);
-  };
-
-  const addTechnology = () => {
-    if (editingProject) {
-      setEditingProject({
-        ...editingProject,
-        technologies: [...editingProject.technologies, '']
-      });
-    }
-  };
-
-  const updateTechnology = (index: number, value: string) => {
-    if (editingProject) {
-      const newTechnologies = [...editingProject.technologies];
-      newTechnologies[index] = value;
-      setEditingProject({
-        ...editingProject,
-        technologies: newTechnologies
-      });
-    }
-  };
-
-  const removeTechnology = (index: number) => {
-    if (editingProject) {
-      const newTechnologies = editingProject.technologies.filter((_, i) => i !== index);
-      setEditingProject({
-        ...editingProject,
-        technologies: newTechnologies
-      });
-    }
-  };
-
-  // Load data on component mount
-  React.useEffect(() => {
+  const handleDeleteProject = (id: string) => {
     const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-    setProjects(existingProjects);
-    setNotifications(existingNotifications);
-  }, []);
+    const updatedProjects = existingProjects.filter((project: Project) => project.id !== id);
+    localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
+    setProjects(updatedProjects);
+    toast({
+      title: "تم الحذف",
+      description: "تم حذف المشروع بنجاح",
+    });
+  };
 
-  if (!user || !isAdmin) {
-    navigate('/admin');
-    return null;
-  }
+  const handleNotificationSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!notificationTitle.trim() || !notificationMessage.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى ملء جميع حقول التحديث",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const expirationDate = new Date();
+    expirationDate.setHours(expirationDate.getHours() + parseInt(expirationHours));
+
+    const newNotification: Notification = {
+      id: Date.now().toString(),
+      title: notificationTitle.trim(),
+      message: notificationMessage.trim(),
+      type: notificationType,
+      expires_at: expirationDate.toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+    const updatedNotifications = [...existingNotifications, newNotification];
+    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+    setNotifications(updatedNotifications);
+
+    setNotificationTitle('');
+    setNotificationMessage('');
+    setNotificationType('info');
+    setExpirationHours('24');
+    setShowNotificationForm(false);
+
+    toast({
+      title: "تم النشر",
+      description: "تم نشر التحديث بنجاح",
+    });
+  };
+
+  const handleDeleteNotification = (id: string) => {
+    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+    const updatedNotifications = existingNotifications.filter((notif: Notification) => notif.id !== id);
+    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+    setNotifications(updatedNotifications);
+    toast({
+      title: "تم الحذف",
+      description: "تم حذف التحديث بنجاح",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold">لوحة التحكم</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Home className="h-4 w-4" />
-                الرئيسية
-              </Button>
-            </Link>
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <h1 className="text-xl font-bold">لوحة تحكم المدير</h1>
+          <div className="flex items-center space-x-2">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-              <LogOut className="h-4 w-4" />
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
               تسجيل الخروج
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto p-4 md:p-6">
-        <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="analytics">الإحصائيات</TabsTrigger>
-            <TabsTrigger value="projects">المشاريع</TabsTrigger>
+      <div className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="projects" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="projects">إدارة المشاريع</TabsTrigger>
             <TabsTrigger value="notifications">التحديثات</TabsTrigger>
           </TabsList>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">إجمالي الزيارات</CardTitle>
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.totalVisits}</div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">زيارات اليوم</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.todayVisits}</div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">إجمالي المشاريع</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{projects.length}</div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
           {/* Projects Tab */}
           <TabsContent value="projects" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">إدارة المشاريع</h2>
-              <Button onClick={startCreating} className="gap-2">
-                <Plus className="h-4 w-4" />
-                إضافة مشروع
+              <h2 className="text-2xl font-bold">المشاريع</h2>
+              <Button onClick={() => setShowProjectForm(!showProjectForm)}>
+                <Plus className="h-4 w-4 mr-2" />
+                إضافة مشروع جديد
               </Button>
             </div>
 
             {/* Project Form */}
-            {editingProject && (
+            {showProjectForm && (
               <Card>
                 <CardHeader>
-                  <CardTitle>{isCreating ? 'إنشاء مشروع جديد' : 'تعديل المشروع'}</CardTitle>
+                  <CardTitle>{editingProject ? 'تعديل المشروع' : 'إضافة مشروع جديد'}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>العنوان</Label>
-                      <Input
-                        value={editingProject.title}
-                        onChange={(e) => setEditingProject({
-                          ...editingProject,
-                          title: e.target.value
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>رابط GitHub</Label>
-                      <Input
-                        value={editingProject.github_url}
-                        onChange={(e) => setEditingProject({
-                          ...editingProject,
-                          github_url: e.target.value
-                        })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>الوصف</Label>
-                    <Textarea
-                      value={editingProject.description}
-                      onChange={(e) => setEditingProject({
-                        ...editingProject,
-                        description: e.target.value
-                      })}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>رابط العرض التوضيحي</Label>
-                      <Input
-                        value={editingProject.demo_url}
-                        onChange={(e) => setEditingProject({
-                          ...editingProject,
-                          demo_url: e.target.value
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>صورة المشروع</Label>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>التقنيات المستخدمة</Label>
-                    {editingProject.technologies.map((tech, index) => (
-                      <div key={index} className="flex gap-2">
+                <CardContent>
+                  <form onSubmit={handleProjectSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="title">اسم المشروع *</Label>
                         <Input
-                          value={tech}
-                          onChange={(e) => updateTechnology(index, e.target.value)}
-                          placeholder="اسم التقنية"
+                          id="title"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          required
                         />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => removeTechnology(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
                       </div>
-                    ))}
-                    <Button variant="outline" onClick={addTechnology} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      إضافة تقنية
-                    </Button>
-                  </div>
+                      <div>
+                        <Label htmlFor="technologies">التقنيات المستخدمة (مفصولة بفاصلة)</Label>
+                        <Input
+                          id="technologies"
+                          value={technologies}
+                          onChange={(e) => setTechnologies(e.target.value)}
+                          placeholder="HTML, CSS, JavaScript"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="description">وصف المشروع *</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={3}
+                        required
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label>محتوى الكود (اختياري)</Label>
-                    <Textarea
-                      value={editingProject.code_content}
-                      onChange={(e) => setEditingProject({
-                        ...editingProject,
-                        code_content: e.target.value
-                      })}
-                      placeholder="ألصق الكود هنا لعرضه في عارض الكود..."
-                      className="min-h-32 font-mono"
-                    />
-                  </div>
+                    <div>
+                      <Label htmlFor="html">كود HTML *</Label>
+                      <Textarea
+                        id="html"
+                        value={htmlContent}
+                        onChange={(e) => setHtmlContent(e.target.value)}
+                        rows={6}
+                        className="font-mono text-sm"
+                        placeholder="<!DOCTYPE html>..."
+                        required
+                      />
+                    </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="featured"
-                      checked={editingProject.is_featured}
-                      onCheckedChange={(checked) => setEditingProject({
-                        ...editingProject,
-                        is_featured: checked
-                      })}
-                    />
-                    <Label htmlFor="featured">مشروع مميز</Label>
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="css">كود CSS (اختياري)</Label>
+                        <Textarea
+                          id="css"
+                          value={cssContent}
+                          onChange={(e) => setCssContent(e.target.value)}
+                          rows={6}
+                          className="font-mono text-sm"
+                          placeholder="body { ... }"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="js">كود JavaScript (اختياري)</Label>
+                        <Textarea
+                          id="js"
+                          value={jsContent}
+                          onChange={(e) => setJsContent(e.target.value)}
+                          rows={6}
+                          className="font-mono text-sm"
+                          placeholder="console.log('Hello');"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="flex gap-2">
-                    <Button onClick={saveProject} disabled={loading} className="gap-2">
-                      <Save className="h-4 w-4" />
-                      {loading ? 'جاري الحفظ...' : 'حفظ'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditingProject(null);
-                        setIsCreating(false);
-                        setImageFile(null);
-                      }}
-                    >
-                      إلغاء
-                    </Button>
-                  </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="featured"
+                        checked={isFeatured}
+                        onChange={(e) => setIsFeatured(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Label htmlFor="featured">مشروع مميز</Label>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button type="submit">
+                        {editingProject ? 'تحديث المشروع' : 'إضافة المشروع'}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={resetProjectForm}>
+                        إلغاء
+                      </Button>
+                    </div>
+                  </form>
                 </CardContent>
               </Card>
             )}
 
             {/* Projects List */}
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
                 <Card key={project.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{project.title}</h3>
-                          {project.is_featured && (
-                            <Badge variant="default">مميز</Badge>
-                          )}
-                        </div>
-                        <p className="text-muted-foreground mb-3">{project.description}</p>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {project.technologies.map((tech) => (
-                            <Badge key={tech} variant="secondary">{tech}</Badge>
-                          ))}
-                        </div>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          {project.github_url && <span>GitHub</span>}
-                          {project.demo_url && <span>عرض توضيحي</span>}
-                          {project.code_content && <span>عارض الكود</span>}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => {
-                            setEditingProject(project);
-                            setIsCreating(false);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => deleteProject(project.id!)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{project.title}</CardTitle>
+                      {project.is_featured && <Badge>مميز</Badge>}
+                    </div>
+                    <CardDescription className="line-clamp-2">
+                      {project.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {project.technologies.slice(0, 3).map((tech) => (
+                        <Badge key={tech} variant="outline" className="text-xs">
+                          {tech}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => window.open(`/project/${project.id}`, '_blank')}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteProject(project.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-              {projects.length === 0 && (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <p className="text-muted-foreground">لا توجد مشاريع بعد. أنشئ مشروعك الأول!</p>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </TabsContent>
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">إدارة التحديثات</h2>
-              <Button onClick={startCreatingNotification} className="gap-2">
-                <Plus className="h-4 w-4" />
-                إضافة تحديث
+              <h2 className="text-2xl font-bold">التحديثات</h2>
+              <Button onClick={() => setShowNotificationForm(!showNotificationForm)}>
+                <Bell className="h-4 w-4 mr-2" />
+                إضافة تحديث جديد
               </Button>
             </div>
 
             {/* Notification Form */}
-            {editingNotification && (
+            {showNotificationForm && (
               <Card>
                 <CardHeader>
-                  <CardTitle>{isCreatingNotification ? 'إنشاء تحديث جديد' : 'تعديل التحديث'}</CardTitle>
+                  <CardTitle>إضافة تحديث جديد</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>العنوان</Label>
+                <CardContent>
+                  <form onSubmit={handleNotificationSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="notif-title">عنوان التحديث</Label>
                       <Input
-                        value={editingNotification.title}
-                        onChange={(e) => setEditingNotification({
-                          ...editingNotification,
-                          title: e.target.value
-                        })}
-                        placeholder="عنوان التحديث"
+                        id="notif-title"
+                        value={notificationTitle}
+                        onChange={(e) => setNotificationTitle(e.target.value)}
+                        required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>النوع</Label>
-                      <Select 
-                        value={editingNotification.type} 
-                        onValueChange={(value: 'info' | 'success' | 'warning') => 
-                          setEditingNotification({
-                            ...editingNotification,
-                            type: value
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="info">معلومات</SelectItem>
-                          <SelectItem value="success">نجاح</SelectItem>
-                          <SelectItem value="warning">تحذير</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    
+                    <div>
+                      <Label htmlFor="notif-message">نص التحديث</Label>
+                      <Textarea
+                        id="notif-message"
+                        value={notificationMessage}
+                        onChange={(e) => setNotificationMessage(e.target.value)}
+                        rows={3}
+                        required
+                      />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label>الرسالة</Label>
-                    <Textarea
-                      value={editingNotification.message}
-                      onChange={(e) => setEditingNotification({
-                        ...editingNotification,
-                        message: e.target.value
-                      })}
-                      placeholder="محتوى التحديث"
-                    />
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="notif-type">نوع التحديث</Label>
+                        <Select value={notificationType} onValueChange={(value: 'info' | 'success' | 'warning') => setNotificationType(value)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="info">معلومة</SelectItem>
+                            <SelectItem value="success">نجاح</SelectItem>
+                            <SelectItem value="warning">تحذير</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="expiration">مدة العرض (ساعات)</Label>
+                        <Select value={expirationHours} onValueChange={setExpirationHours}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">ساعة واحدة</SelectItem>
+                            <SelectItem value="6">6 ساعات</SelectItem>
+                            <SelectItem value="12">12 ساعة</SelectItem>
+                            <SelectItem value="24">24 ساعة</SelectItem>
+                            <SelectItem value="48">48 ساعة</SelectItem>
+                            <SelectItem value="168">أسبوع</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label>تاريخ الانتهاء</Label>
-                    <Input
-                      type="date"
-                      value={editingNotification.expires_at.split('T')[0]}
-                      onChange={(e) => setEditingNotification({
-                        ...editingNotification,
-                        expires_at: e.target.value + 'T23:59:59.999Z'
-                      })}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={saveNotification} disabled={loading} className="gap-2">
-                      <Save className="h-4 w-4" />
-                      {loading ? 'جاري الحفظ...' : 'حفظ'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditingNotification(null);
-                        setIsCreatingNotification(false);
-                      }}
-                    >
-                      إلغاء
-                    </Button>
-                  </div>
+                    <div className="flex gap-2">
+                      <Button type="submit">نشر التحديث</Button>
+                      <Button type="button" variant="outline" onClick={() => setShowNotificationForm(false)}>
+                        إلغاء
+                      </Button>
+                    </div>
+                  </form>
                 </CardContent>
               </Card>
             )}
 
             {/* Notifications List */}
-            <div className="grid gap-4">
+            <div className="space-y-4">
               {notifications.map((notification) => (
                 <Card key={notification.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{notification.title}</h3>
-                          <Badge 
-                            variant={
-                              notification.type === 'success' ? 'default' : 
-                              notification.type === 'warning' ? 'destructive' : 'secondary'
-                            }
-                          >
-                            {notification.type === 'info' ? 'معلومات' : 
-                             notification.type === 'success' ? 'نجاح' : 'تحذير'}
-                          </Badge>
-                        </div>
-                        <p className="text-muted-foreground mb-3">{notification.message}</p>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span>الإنشاء: {new Date(notification.created_at).toLocaleDateString('ar-SA')}</span>
-                          <span>الانتهاء: {new Date(notification.expires_at).toLocaleDateString('ar-SA')}</span>
-                        </div>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{notification.title}</CardTitle>
+                        <Badge variant={notification.type === 'success' ? 'default' : notification.type === 'warning' ? 'destructive' : 'secondary'}>
+                          {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
+                        </Badge>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => {
-                            setEditingNotification(notification);
-                            setIsCreatingNotification(false);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => deleteNotification(notification.id!)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteNotification(notification.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground mb-2">{notification.message}</p>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(notification.created_at).toLocaleDateString('ar-SA')}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        ينتهي: {new Date(notification.expires_at).toLocaleDateString('ar-SA')}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-              {notifications.length === 0 && (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <p className="text-muted-foreground">لا توجد تحديثات بعد. أنشئ تحديثك الأول!</p>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </TabsContent>
         </Tabs>

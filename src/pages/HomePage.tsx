@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Github, ExternalLink, Mail, MapPin, Bell, X } from 'lucide-react';
+import { Github, ExternalLink, Phone, MapPin, Bell, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +12,9 @@ interface Project {
   title: string;
   description: string;
   technologies: string[];
-  github_url: string;
-  demo_url: string;
-  image_url: string;
+  html_content: string;
+  css_content?: string;
+  js_content?: string;
   is_featured: boolean;
 }
 
@@ -49,6 +49,12 @@ export default function HomePage() {
     const updatedNotifications = notifications.filter(notif => notif.id !== id);
     setNotifications(updatedNotifications);
     localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+  };
+
+  const createWhatsAppLink = (message: string) => {
+    const phoneNumber = "+218931303032";
+    const encodedMessage = encodeURIComponent(message);
+    return `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodedMessage}`;
   };
 
   const skills = [
@@ -134,9 +140,9 @@ export default function HomePage() {
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button asChild size="lg">
-              <a href="mailto:mousa.omar.com@gmail.com">
-                <Mail className="h-5 w-5 mr-2" />
-                تواصل معي
+              <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
+                <MessageCircle className="h-5 w-5 mr-2" />
+                بدء محادثة
               </a>
             </Button>
             <Button variant="outline" size="lg" asChild>
@@ -184,15 +190,6 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
                 <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  {project.image_url && (
-                    <div className="aspect-video overflow-hidden">
-                      <img 
-                        src={project.image_url} 
-                        alt={project.title}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  )}
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{project.title}</CardTitle>
@@ -200,7 +197,7 @@ export default function HomePage() {
                         <Badge variant="default">مميز</Badge>
                       )}
                     </div>
-                    <CardDescription className="line-clamp-2">
+                    <CardDescription className="line-clamp-3">
                       {project.description}
                     </CardDescription>
                   </CardHeader>
@@ -221,23 +218,14 @@ export default function HomePage() {
                     <div className="flex gap-2">
                       <Button asChild size="sm" className="flex-1">
                         <Link to={`/project/${project.id}`}>
-                          عرض المشروع
+                          عرض مباشر
                         </Link>
                       </Button>
-                      {project.github_url && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={project.github_url} target="_blank" rel="noopener noreferrer">
-                            <Github className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
-                      {project.demo_url && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={createWhatsAppLink(`مرحباً موسى، أود طلب مشروع مثل: ${project.title}`)}>
+                          <MessageCircle className="h-4 w-4" />
+                        </a>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -254,8 +242,8 @@ export default function HomePage() {
             تواصل معي ولنناقش كيف يمكنني مساعدتك في تحقيق أهدافك.
           </p>
           <Button asChild size="lg">
-            <a href="mailto:mousa.omar.com@gmail.com">
-              ابدأ محادثة
+            <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
+              بدء محادثة
             </a>
           </Button>
         </section>
