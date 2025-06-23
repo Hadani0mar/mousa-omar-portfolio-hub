@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Github, ExternalLink, Phone, MapPin, Bell, X, MessageCircle } from 'lucide-react';
+import { Github, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,12 +25,18 @@ interface Notification {
   type: 'info' | 'success' | 'warning';
   expires_at: string;
   created_at: string;
+  read?: boolean;
+}
+
+interface SiteSettings {
+  show_terminal: boolean;
 }
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
 
   useEffect(() => {
     // Load projects from localStorage
@@ -43,7 +49,24 @@ export default function HomePage() {
       new Date(notif.expires_at) > new Date()
     );
     setNotifications(activeNotifications);
+
+    // Load site settings
+    const settings = JSON.parse(localStorage.getItem('site-settings') || '{"show_terminal": true}');
+    setSiteSettings(settings);
   }, []);
+
+  const markNotificationsAsRead = () => {
+    const updatedNotifications = notifications.map(notif => ({ ...notif, read: true }));
+    setNotifications(updatedNotifications);
+    
+    // Update localStorage
+    const allNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+    const updatedAllNotifications = allNotifications.map((notif: Notification) => {
+      const found = updatedNotifications.find(n => n.id === notif.id);
+      return found ? { ...notif, read: true } : notif;
+    });
+    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedAllNotifications));
+  };
 
   const dismissNotification = (id: string) => {
     const updatedNotifications = notifications.filter(notif => notif.id !== id);
@@ -57,6 +80,23 @@ export default function HomePage() {
     return `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodedMessage}`;
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleNotificationToggle = () => {
+    if (!showNotifications) {
+      markNotificationsAsRead();
+    }
+    setShowNotifications(!showNotifications);
+  };
+
+  const unreadNotifications = notifications.filter(notif => !notif.read);
+
   const skills = [
     'Next.js', 'React.js', 'HTML', 'CSS', 'JavaScript', 'TypeScript',
     'Tailwind CSS', 'Node.js', 'Git', 'Responsive Design'
@@ -68,28 +108,39 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold">Mousa Omar</h1>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent animate-pulse hover:from-purple-600 hover:via-pink-600 hover:to-red-600 transition-all duration-500 cursor-pointer">
+              موسى عمر
+            </h1>
           </div>
           <div className="flex items-center space-x-2">
+            {/* Terminal Link */}
+            {siteSettings.show_terminal && (
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/terminal">
+                  <Terminal className="h-5 w-5" />
+                </Link>
+              </Button>
+            )}
+            
             {/* Notification Bell */}
             <div className="relative">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={handleNotificationToggle}
                 className="relative"
               >
                 <Bell className="h-5 w-5" />
-                {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                    {notifications.length}
+                {unreadNotifications.length > 0 && !showNotifications && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center animate-pulse">
+                    {unreadNotifications.length}
                   </span>
                 )}
               </Button>
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                <div className="absolute right-0 top-12 w-80 sm:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                   <div className="p-4 border-b">
                     <h3 className="font-semibold">التحديثات</h3>
                   </div>
@@ -100,7 +151,7 @@ export default function HomePage() {
                   ) : (
                     <div className="space-y-2 p-2">
                       {notifications.map((notification) => (
-                        <div key={notification.id} className="p-3 border rounded-lg relative">
+                        <div key={notification.id} className="p-3 border rounded-lg relative bg-card hover:bg-accent/50 transition-colors">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -109,10 +160,15 @@ export default function HomePage() {
                           >
                             <X className="h-3 w-3" />
                           </Button>
-                          <h4 className="font-medium text-sm mb-1">{notification.title}</h4>
-                          <p className="text-sm text-muted-foreground">{notification.message}</p>
-                          <div className="text-xs text-muted-foreground mt-2">
-                            {new Date(notification.created_at).toLocaleDateString('ar-SA')}
+                          <div className="pr-8">
+                            <h4 className="font-medium text-sm mb-1">{notification.title}</h4>
+                            <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <Badge variant={notification.type === 'success' ? 'default' : notification.type === 'warning' ? 'destructive' : 'secondary'} className="text-xs">
+                                {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
+                              </Badge>
+                              <span>{formatDate(notification.created_at)}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -131,7 +187,7 @@ export default function HomePage() {
         <section className="text-center space-y-6 py-12">
           <div className="space-y-4">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              مرحباً، أنا <span className="text-primary">موسى عمر</span>
+              مرحباً، أنا <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent animate-pulse hover:from-purple-600 hover:via-pink-600 hover:to-red-600 transition-all duration-500">موسى عمر</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
               مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية

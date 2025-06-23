@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut } from 'lucide-react';
@@ -34,6 +33,10 @@ interface Notification {
   created_at: string;
 }
 
+interface SiteSettings {
+  show_terminal: boolean;
+}
+
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -57,10 +60,12 @@ export default function AdminDashboard() {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState<'info' | 'success' | 'warning'>('info');
   const [expirationHours, setExpirationHours] = useState('24');
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
 
   useEffect(() => {
     loadProjects();
     loadNotifications();
+    loadSiteSettings();
   }, []);
 
   const loadProjects = () => {
@@ -71,6 +76,21 @@ export default function AdminDashboard() {
   const loadNotifications = () => {
     const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
     setNotifications(existingNotifications);
+  };
+
+  const loadSiteSettings = () => {
+    const settings = JSON.parse(localStorage.getItem('site-settings') || '{"show_terminal": true}');
+    setSiteSettings(settings);
+  };
+
+  const updateSiteSettings = (newSettings: Partial<SiteSettings>) => {
+    const updatedSettings = { ...siteSettings, ...newSettings };
+    setSiteSettings(updatedSettings);
+    localStorage.setItem('site-settings', JSON.stringify(updatedSettings));
+    toast({
+      title: "تم التحديث",
+      description: "تم تحديث إعدادات الموقع بنجاح",
+    });
   };
 
   const handleLogout = async () => {
@@ -231,9 +251,10 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="projects">إدارة المشاريع</TabsTrigger>
             <TabsTrigger value="notifications">التحديثات</TabsTrigger>
+            <TabsTrigger value="settings">إعدادات الموقع</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab */}
@@ -501,6 +522,37 @@ export default function AdminDashboard() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* Site Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">إعدادات الموقع</h2>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>إعدادات عامة</CardTitle>
+                <CardDescription>تحكم في إعدادات الموقع العامة</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="show-terminal">إظهار صفحة محرر الأكواد</Label>
+                    <p className="text-sm text-muted-foreground">
+                      تتيح للزوار تجربة الأكواد ومشاهدة النتائج مباشرة
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="show-terminal"
+                    checked={siteSettings.show_terminal}
+                    onChange={(e) => updateSiteSettings({ show_terminal: e.target.checked })}
+                    className="rounded"
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
