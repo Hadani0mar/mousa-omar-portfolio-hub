@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -12,7 +11,9 @@ import {
   Globe, 
   TrendingUp,
   LogOut,
-  Home
+  Home,
+  Bell,
+  Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,17 +42,29 @@ interface Project {
   is_featured: boolean;
 }
 
+interface Notification {
+  id?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning';
+  expires_at: string;
+  created_at: string;
+}
+
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingNotification, setIsCreatingNotification] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Mock analytics data for now
+  // Mock analytics data
   const analytics = {
     totalVisits: 1250,
     todayVisits: 45,
@@ -64,26 +78,12 @@ export default function AdminDashboard() {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `${fileName}`;
-
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from('project-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('project-images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
-    }
+    // Since we don't have proper storage setup, we'll create a data URL
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.readAsDataURL(file);
+    });
   };
 
   const saveProject = async () => {
@@ -103,7 +103,6 @@ export default function AdminDashboard() {
         technologies: editingProject.technologies.filter(tech => tech.trim() !== '')
       };
 
-      // For now, we'll store projects in localStorage until the database types are updated
       const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
       
       if (isCreating) {
@@ -158,6 +157,70 @@ export default function AdminDashboard() {
     }
   };
 
+  const saveNotification = async () => {
+    if (!editingNotification) return;
+
+    try {
+      setLoading(true);
+      
+      const notificationData = {
+        ...editingNotification,
+        created_at: isCreatingNotification ? new Date().toISOString() : editingNotification.created_at
+      };
+
+      const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+      
+      if (isCreatingNotification) {
+        const newNotification = { ...notificationData, id: Date.now().toString() };
+        const updatedNotifications = [...existingNotifications, newNotification];
+        localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+        setNotifications(updatedNotifications);
+      } else {
+        const updatedNotifications = existingNotifications.map((n: Notification) => 
+          n.id === editingNotification.id ? notificationData : n
+        );
+        localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+        setNotifications(updatedNotifications);
+      }
+
+      setEditingNotification(null);
+      setIsCreatingNotification(false);
+      
+      toast({
+        title: "نجح الحفظ",
+        description: `تم ${isCreatingNotification ? 'إنشاء' : 'تحديث'} التحديث بنجاح!`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+      const updatedNotifications = existingNotifications.filter((n: Notification) => n.id !== id);
+      localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+      setNotifications(updatedNotifications);
+      
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف التحديث بنجاح!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const startCreating = () => {
     setEditingProject({
       title: '',
@@ -170,6 +233,20 @@ export default function AdminDashboard() {
       is_featured: false
     });
     setIsCreating(true);
+  };
+
+  const startCreatingNotification = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    setEditingNotification({
+      title: '',
+      message: '',
+      type: 'info',
+      expires_at: tomorrow.toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    });
+    setIsCreatingNotification(true);
   };
 
   const addTechnology = () => {
@@ -202,10 +279,12 @@ export default function AdminDashboard() {
     }
   };
 
-  // Load projects from localStorage on component mount
+  // Load data on component mount
   React.useEffect(() => {
     const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
+    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
     setProjects(existingProjects);
+    setNotifications(existingNotifications);
   }, []);
 
   if (!user || !isAdmin) {
@@ -217,7 +296,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between">
+        <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold">لوحة التحكم</h1>
           </div>
@@ -237,11 +316,12 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-4 md:p-6">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="analytics">الإحصائيات</TabsTrigger>
             <TabsTrigger value="projects">المشاريع</TabsTrigger>
+            <TabsTrigger value="notifications">التحديثات</TabsTrigger>
           </TabsList>
 
           {/* Analytics Tab */}
@@ -472,6 +552,159 @@ export default function AdminDashboard() {
                 <Card>
                   <CardContent className="p-12 text-center">
                     <p className="text-muted-foreground">لا توجد مشاريع بعد. أنشئ مشروعك الأول!</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">إدارة التحديثات</h2>
+              <Button onClick={startCreatingNotification} className="gap-2">
+                <Plus className="h-4 w-4" />
+                إضافة تحديث
+              </Button>
+            </div>
+
+            {/* Notification Form */}
+            {editingNotification && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{isCreatingNotification ? 'إنشاء تحديث جديد' : 'تعديل التحديث'}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>العنوان</Label>
+                      <Input
+                        value={editingNotification.title}
+                        onChange={(e) => setEditingNotification({
+                          ...editingNotification,
+                          title: e.target.value
+                        })}
+                        placeholder="عنوان التحديث"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>النوع</Label>
+                      <Select 
+                        value={editingNotification.type} 
+                        onValueChange={(value: 'info' | 'success' | 'warning') => 
+                          setEditingNotification({
+                            ...editingNotification,
+                            type: value
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="info">معلومات</SelectItem>
+                          <SelectItem value="success">نجاح</SelectItem>
+                          <SelectItem value="warning">تحذير</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>الرسالة</Label>
+                    <Textarea
+                      value={editingNotification.message}
+                      onChange={(e) => setEditingNotification({
+                        ...editingNotification,
+                        message: e.target.value
+                      })}
+                      placeholder="محتوى التحديث"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>تاريخ الانتهاء</Label>
+                    <Input
+                      type="date"
+                      value={editingNotification.expires_at.split('T')[0]}
+                      onChange={(e) => setEditingNotification({
+                        ...editingNotification,
+                        expires_at: e.target.value + 'T23:59:59.999Z'
+                      })}
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={saveNotification} disabled={loading} className="gap-2">
+                      <Save className="h-4 w-4" />
+                      {loading ? 'جاري الحفظ...' : 'حفظ'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingNotification(null);
+                        setIsCreatingNotification(false);
+                      }}
+                    >
+                      إلغاء
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Notifications List */}
+            <div className="grid gap-4">
+              {notifications.map((notification) => (
+                <Card key={notification.id}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold">{notification.title}</h3>
+                          <Badge 
+                            variant={
+                              notification.type === 'success' ? 'default' : 
+                              notification.type === 'warning' ? 'destructive' : 'secondary'
+                            }
+                          >
+                            {notification.type === 'info' ? 'معلومات' : 
+                             notification.type === 'success' ? 'نجاح' : 'تحذير'}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground mb-3">{notification.message}</p>
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          <span>الإنشاء: {new Date(notification.created_at).toLocaleDateString('ar-SA')}</span>
+                          <span>الانتهاء: {new Date(notification.expires_at).toLocaleDateString('ar-SA')}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setEditingNotification(notification);
+                            setIsCreatingNotification(false);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => deleteNotification(notification.id!)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {notifications.length === 0 && (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <p className="text-muted-foreground">لا توجد تحديثات بعد. أنشئ تحديثك الأول!</p>
                   </CardContent>
                 </Card>
               )}

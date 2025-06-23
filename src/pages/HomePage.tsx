@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Github, ExternalLink, Mail, MapPin, Code, Star } from 'lucide-react';
+import { Github, ExternalLink, Mail, MapPin, Bell, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,254 +15,251 @@ interface Project {
   github_url: string;
   demo_url: string;
   image_url: string;
-  code_content: string;
   is_featured: boolean;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning';
+  expires_at: string;
+  created_at: string;
 }
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     // Load projects from localStorage
     const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
     setProjects(existingProjects);
+
+    // Load notifications from localStorage
+    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
+    const activeNotifications = existingNotifications.filter((notif: Notification) => 
+      new Date(notif.expires_at) > new Date()
+    );
+    setNotifications(activeNotifications);
   }, []);
 
+  const dismissNotification = (id: string) => {
+    const updatedNotifications = notifications.filter(notif => notif.id !== id);
+    setNotifications(updatedNotifications);
+    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+  };
+
   const skills = [
-    'Next.js', 'React', 'TypeScript', 'JavaScript', 'HTML5', 'CSS3', 
-    'Tailwind CSS', 'Node.js', 'Supabase', 'Git', 'VS Code'
+    'Next.js', 'React.js', 'HTML', 'CSS', 'JavaScript', 'TypeScript',
+    'Tailwind CSS', 'Node.js', 'Git', 'Responsive Design'
   ];
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold">Mousa Omar</h1>
           </div>
-          <nav className="flex items-center space-x-6">
-            <a href="#about" className="text-sm font-medium hover:text-primary transition-colors">نبذة</a>
-            <a href="#skills" className="text-sm font-medium hover:text-primary transition-colors">المهارات</a>
-            <a href="#projects" className="text-sm font-medium hover:text-primary transition-colors">المشاريع</a>
-            <a href="#contact" className="text-sm font-medium hover:text-primary transition-colors">التواصل</a>
+          <div className="flex items-center space-x-2">
+            {/* Notification Bell */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative"
+              >
+                <Bell className="h-5 w-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
+              </Button>
+
+              {/* Notifications Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  <div className="p-4 border-b">
+                    <h3 className="font-semibold">التحديثات</h3>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      لا توجد تحديثات جديدة
+                    </div>
+                  ) : (
+                    <div className="space-y-2 p-2">
+                      {notifications.map((notification) => (
+                        <div key={notification.id} className="p-3 border rounded-lg relative">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6"
+                            onClick={() => dismissNotification(notification.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <h4 className="font-medium text-sm mb-1">{notification.title}</h4>
+                          <p className="text-sm text-muted-foreground">{notification.message}</p>
+                          <div className="text-xs text-muted-foreground mt-2">
+                            {new Date(notification.created_at).toLocaleDateString('ar-SA')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <ThemeToggle />
-            <Link to="/admin">
-              <Button variant="outline" size="sm">تسجيل الدخول</Button>
-            </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-16">
         {/* Hero Section */}
-        <section className="text-center py-16">
-          <div className="mx-auto max-w-3xl">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl mb-6">
+        <section className="text-center space-y-6 py-12">
+          <div className="space-y-4">
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
               مرحباً، أنا <span className="text-primary">موسى عمر</span>
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              مطور ويب ليبي متخصص في Next.js و React
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
+              مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية
             </p>
-            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              خبير في تطوير تطبيقات الويب الحديثة باستخدام Next.js و React و TypeScript. 
-              أسعى لبناء تجارب رقمية مميزة وحلول تقنية مبتكرة.
-            </p>
-            <div className="flex justify-center items-center gap-4">
-              <Button size="lg" className="gap-2">
-                <Mail className="h-4 w-4" />
-                تواصل معي
-              </Button>
-              <Button variant="outline" size="lg" className="gap-2">
-                <Github className="h-4 w-4" />
-                GitHub
-              </Button>
-            </div>
           </div>
-        </section>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button asChild size="lg">
+              <a href="mailto:mousa.omar.com@gmail.com">
+                <Mail className="h-5 w-5 mr-2" />
+                تواصل معي
+              </a>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+                <Github className="h-5 w-5 mr-2" />
+                GitHub
+              </a>
+            </Button>
+          </div>
 
-        {/* About Section */}
-        <section id="about" className="py-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold mb-8">نبذة عني</h2>
-            <div className="space-y-6 text-muted-foreground">
-              <p className="text-lg">
-                أنا مطور ويب ليبي شغوف بالتكنولوجيا والابتكار. أتخصص في تطوير تطبيقات الويب الحديثة 
-                باستخدام أحدث التقنيات مثل Next.js و React و TypeScript.
-              </p>
-              <p className="text-lg">
-                أؤمن بقوة التكنولوجيا في تغيير حياة الناس وأسعى دائماً لتطوير حلول رقمية مبتكرة 
-                تحل مشاكل حقيقية وتقدم تجارب مستخدم استثنائية.
-              </p>
-              <div className="flex items-center justify-center gap-2 text-sm">
-                <MapPin className="h-4 w-4" />
-                <span>ليبيا</span>
-              </div>
-            </div>
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            <span>ليبيا</span>
           </div>
         </section>
 
         {/* Skills Section */}
-        <section id="skills" className="py-16">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-3xl font-bold mb-8">المهارات التقنية</h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="h-5 w-5" />
-                    Frontend Development
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {['React', 'Next.js', 'TypeScript', 'HTML5', 'CSS3', 'Tailwind CSS'].map((skill) => (
-                      <Badge key={skill} variant="secondary">{skill}</Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="h-5 w-5" />
-                    Backend & Database
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {['Node.js', 'Supabase', 'PostgreSQL', 'API Design'].map((skill) => (
-                      <Badge key={skill} variant="secondary">{skill}</Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="h-5 w-5" />
-                    Tools & Others
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {['Git', 'VS Code', 'Vercel', 'Responsive Design'].map((skill) => (
-                      <Badge key={skill} variant="secondary">{skill}</Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+        <section className="space-y-6">
+          <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
+          <div className="flex flex-wrap justify-center gap-3">
+            {skills.map((skill) => (
+              <Badge key={skill} variant="secondary" className="text-sm px-3 py-1">
+                {skill}
+              </Badge>
+            ))}
           </div>
         </section>
 
-        {/* Projects Section */}
-        <section id="projects" className="py-16">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="text-3xl font-bold text-center mb-8">المشاريع</h2>
-            
-            {projects.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">لا توجد مشاريع بعد. سيتم إضافة المشاريع قريباً!</p>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project) => (
-                  <Card key={project.id} className="overflow-hidden">
-                    {project.image_url && (
-                      <div className="aspect-video overflow-hidden">
-                        <img 
-                          src={project.image_url} 
-                          alt={project.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          {project.title}
-                          {project.is_featured && (
-                            <Star className="h-4 w-4 text-yellow-500" />
-                          )}
-                        </CardTitle>
-                      </div>
-                      <CardDescription>{project.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {project.technologies.slice(0, 3).map((tech) => (
-                          <Badge key={tech} variant="outline" className="text-xs">
-                            {tech}
-                          </Badge>
-                        ))}
-                        {project.technologies.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{project.technologies.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        {project.github_url && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={project.github_url} target="_blank" rel="noopener noreferrer">
-                              <Github className="h-4 w-4 mr-1" />
-                              الكود
-                            </a>
-                          </Button>
-                        )}
-                        {project.demo_url && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              العرض
-                            </a>
-                          </Button>
-                        )}
-                        <Link to={`/project/${project.id}`}>
-                          <Button size="sm">
-                            التفاصيل
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+        {/* Featured Projects */}
+        <section className="space-y-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-bold">المشاريع المميزة</h2>
+            <p className="text-muted-foreground">
+              مجموعة من أحدث أعمالي في تطوير المواقع والتطبيقات
+            </p>
           </div>
+
+          {projects.length === 0 ? (
+            <Card className="text-center p-12">
+              <CardContent>
+                <p className="text-muted-foreground">لا توجد مشاريع متاحة حالياً</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  {project.image_url && (
+                    <div className="aspect-video overflow-hidden">
+                      <img 
+                        src={project.image_url} 
+                        alt={project.title}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{project.title}</CardTitle>
+                      {project.is_featured && (
+                        <Badge variant="default">مميز</Badge>
+                      )}
+                    </div>
+                    <CardDescription className="line-clamp-2">
+                      {project.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {project.technologies.slice(0, 3).map((tech) => (
+                        <Badge key={tech} variant="outline" className="text-xs">
+                          {tech}
+                        </Badge>
+                      ))}
+                      {project.technologies.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{project.technologies.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button asChild size="sm" className="flex-1">
+                        <Link to={`/project/${project.id}`}>
+                          عرض المشروع
+                        </Link>
+                      </Button>
+                      {project.github_url && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={project.github_url} target="_blank" rel="noopener noreferrer">
+                            <Github className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                      {project.demo_url && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Contact Section */}
-        <section id="contact" className="py-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold mb-8">تواصل معي</h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              هل لديك مشروع في ذهنك؟ أم تريد مناقشة فرصة عمل؟ 
-              لا تتردد في التواصل معي!
-            </p>
-            <div className="flex justify-center gap-4">
-              <Button size="lg" className="gap-2">
-                <Mail className="h-4 w-4" />
-                البريد الإلكتروني
-              </Button>
-              <Button variant="outline" size="lg" className="gap-2">
-                <Github className="h-4 w-4" />
-                GitHub
-              </Button>
-            </div>
-          </div>
+        <section className="text-center space-y-6 py-12">
+          <h2 className="text-3xl font-bold">هل لديك مشروع؟</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            أحب العمل على المشاريع المثيرة والتحديات التقنية الجديدة. 
+            تواصل معي ولنناقش كيف يمكنني مساعدتك في تحقيق أهدافك.
+          </p>
+          <Button asChild size="lg">
+            <a href="mailto:mousa.omar.com@gmail.com">
+              ابدأ محادثة
+            </a>
+          </Button>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container text-center text-muted-foreground">
-          <p>&copy; 2024 Mousa Omar. جميع الحقوق محفوظة.</p>
-        </div>
-      </footer>
     </div>
   );
 }
