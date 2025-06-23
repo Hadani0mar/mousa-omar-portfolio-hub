@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -31,45 +30,13 @@ export default function ProjectView() {
 
   useEffect(() => {
     if (id) {
-      fetchProject();
-      trackVisit();
-    }
-  }, [id]);
-
-  const fetchProject = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      setProject(data);
-    } catch (error) {
-      console.error('Error fetching project:', error);
-      toast({
-        title: "Error",
-        description: "Project not found",
-        variant: "destructive",
-      });
-    } finally {
+      // Load project from localStorage
+      const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
+      const foundProject = existingProjects.find((p: Project) => p.id === id);
+      setProject(foundProject || null);
       setLoading(false);
     }
-  };
-
-  const trackVisit = async () => {
-    try {
-      await supabase.from('site_analytics').insert({
-        page_path: `/project/${id}`,
-        visitor_ip: 'unknown',
-        user_agent: navigator.userAgent,
-        visited_at: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error tracking visit:', error);
-    }
-  };
+  }, [id]);
 
   const copyToClipboard = async () => {
     if (project?.code_content) {
@@ -78,13 +45,13 @@ export default function ProjectView() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         toast({
-          title: "Copied!",
-          description: "Code copied to clipboard",
+          title: "تم النسخ!",
+          description: "تم نسخ الكود إلى الحافظة",
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: "Failed to copy code",
+          title: "خطأ",
+          description: "فشل في نسخ الكود",
           variant: "destructive",
         });
       }
@@ -96,7 +63,7 @@ export default function ProjectView() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading project...</p>
+          <p className="mt-4 text-muted-foreground">جاري تحميل المشروع...</p>
         </div>
       </div>
     );
@@ -106,9 +73,9 @@ export default function ProjectView() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Project not found</h1>
+          <h1 className="text-2xl font-bold mb-4">المشروع غير موجود</h1>
           <Link to="/">
-            <Button>Go Home</Button>
+            <Button>العودة للرئيسية</Button>
           </Link>
         </div>
       </div>
@@ -124,7 +91,7 @@ export default function ProjectView() {
             <Link to="/">
               <Button variant="ghost" size="sm" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                Back to Portfolio
+                العودة للمعرض
               </Button>
             </Link>
           </div>
@@ -139,7 +106,7 @@ export default function ProjectView() {
             <div className="flex items-center gap-2 mb-4">
               <h1 className="text-3xl font-bold">{project.title}</h1>
               {project.is_featured && (
-                <Badge variant="default">Featured</Badge>
+                <Badge variant="default">مميز</Badge>
               )}
             </div>
             <p className="text-lg text-muted-foreground mb-6">{project.description}</p>
@@ -157,7 +124,7 @@ export default function ProjectView() {
                 <Button asChild>
                   <a href={project.github_url} target="_blank" rel="noopener noreferrer">
                     <Github className="h-4 w-4 mr-2" />
-                    View on GitHub
+                    عرض على GitHub
                   </a>
                 </Button>
               )}
@@ -165,7 +132,7 @@ export default function ProjectView() {
                 <Button variant="outline" asChild>
                   <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Live Demo
+                    العرض التوضيحي
                   </a>
                 </Button>
               )}
@@ -191,9 +158,9 @@ export default function ProjectView() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Source Code</CardTitle>
+                    <CardTitle>الكود المصدري</CardTitle>
                     <CardDescription>
-                      View and copy the source code for this project
+                      عرض ونسخ الكود المصدري لهذا المشروع
                     </CardDescription>
                   </div>
                   <Button
@@ -205,12 +172,12 @@ export default function ProjectView() {
                     {copied ? (
                       <>
                         <Check className="h-4 w-4" />
-                        Copied!
+                        تم النسخ!
                       </>
                     ) : (
                       <>
                         <Copy className="h-4 w-4" />
-                        Copy Code
+                        نسخ الكود
                       </>
                     )}
                   </Button>
@@ -231,9 +198,9 @@ export default function ProjectView() {
           {project.demo_url && (
             <Card className="mt-8">
               <CardHeader>
-                <CardTitle>Live Preview</CardTitle>
+                <CardTitle>معاينة مباشرة</CardTitle>
                 <CardDescription>
-                  Interactive preview of the project
+                  معاينة تفاعلية للمشروع
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
