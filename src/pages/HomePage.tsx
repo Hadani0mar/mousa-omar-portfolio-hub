@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Github, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
+import { Facebook, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -140,7 +141,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent animate-pulse hover:from-purple-600 hover:via-pink-600 hover:to-red-600 transition-all duration-500 cursor-pointer">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer">
               موسى عمر
             </h1>
           </div>
@@ -172,7 +173,7 @@ export default function HomePage() {
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 sm:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                <div className="absolute right-0 top-12 w-72 sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                   <div className="p-4 border-b">
                     <h3 className="font-semibold">التحديثات</h3>
                   </div>
@@ -219,7 +220,7 @@ export default function HomePage() {
         <section className="text-center space-y-6 py-12">
           <div className="space-y-4">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              مرحباً، أنا <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent animate-pulse hover:from-purple-600 hover:via-pink-600 hover:to-red-600 transition-all duration-500">موسى عمر</span>
+              مرحباً، أنا <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">موسى عمر</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
               مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية
@@ -234,9 +235,9 @@ export default function HomePage() {
               </a>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-                <Github className="h-5 w-5 mr-2" />
-                GitHub
+              <a href="https://www.facebook.com/mousa.0mar" target="_blank" rel="noopener noreferrer">
+                <Facebook className="h-5 w-5 mr-2" />
+                Facebook
               </a>
             </Button>
           </div>
@@ -331,7 +332,7 @@ export default function HomePage() {
           </p>
           <Button asChild size="lg">
             <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
-              بدء محادثة
+              بدء محادثе
             </a>
           </Button>
         </section>
