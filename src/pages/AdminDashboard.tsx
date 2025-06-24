@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut } from 'lucide-react';
@@ -63,34 +64,74 @@ export default function AdminDashboard() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
 
   useEffect(() => {
-    loadProjects();
-    loadNotifications();
-    loadSiteSettings();
+    loadData();
   }, []);
 
-  const loadProjects = () => {
-    const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-    setProjects(existingProjects);
+  const loadData = async () => {
+    await Promise.all([loadProjects(), loadNotifications(), loadSiteSettings()]);
   };
 
-  const loadNotifications = () => {
-    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-    setNotifications(existingNotifications);
+  const loadProjects = async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading projects:', error);
+    } else {
+      setProjects(data || []);
+    }
   };
 
-  const loadSiteSettings = () => {
-    const settings = JSON.parse(localStorage.getItem('site-settings') || '{"show_terminal": true}');
-    setSiteSettings(settings);
+  const loadNotifications = async () => {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading notifications:', error);
+    } else {
+      setNotifications(data || []);
+    }
   };
 
-  const updateSiteSettings = (newSettings: Partial<SiteSettings>) => {
+  const loadSiteSettings = async () => {
+    const { data, error } = await supabase
+      .from('site_config')
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error loading site settings:', error);
+    } else if (data) {
+      setSiteSettings({ show_terminal: data.show_terminal });
+    }
+  };
+
+  const updateSiteSettings = async (newSettings: Partial<SiteSettings>) => {
     const updatedSettings = { ...siteSettings, ...newSettings };
-    setSiteSettings(updatedSettings);
-    localStorage.setItem('site-settings', JSON.stringify(updatedSettings));
-    toast({
-      title: "تم التحديث",
-      description: "تم تحديث إعدادات الموقع بنجاح",
-    });
+    
+    const { error } = await supabase
+      .from('site_config')
+      .update(updatedSettings)
+      .eq('id', 1);
+
+    if (error) {
+      console.error('Error updating settings:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث الإعدادات",
+        variant: "destructive",
+      });
+    } else {
+      setSiteSettings(updatedSettings);
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث إعدادات الموقع بنجاح",
+      });
+    }
   };
 
   const handleLogout = async () => {
@@ -110,7 +151,7 @@ export default function AdminDashboard() {
     setShowProjectForm(false);
   };
 
-  const handleProjectSubmit = (e: React.FormEvent) => {
+  const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!title.trim() || !description.trim() || !htmlContent.trim()) {
@@ -122,40 +163,52 @@ export default function AdminDashboard() {
       return;
     }
 
-    const projectData: Project = {
-      id: editingProject?.id || Date.now().toString(),
+    const projectData = {
       title: title.trim(),
       description: description.trim(),
       technologies: technologies.split(',').map(tech => tech.trim()).filter(tech => tech),
       html_content: htmlContent,
-      css_content: cssContent || undefined,
-      js_content: jsContent || undefined,
+      css_content: cssContent || null,
+      js_content: jsContent || null,
       is_featured: isFeatured,
     };
 
-    const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-    
-    if (editingProject) {
-      const updatedProjects = existingProjects.map((project: Project) =>
-        project.id === editingProject.id ? projectData : project
-      );
-      localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
-      setProjects(updatedProjects);
+    try {
+      if (editingProject) {
+        const { error } = await supabase
+          .from('projects')
+          .update(projectData)
+          .eq('id', editingProject.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "تم التحديث",
+          description: "تم تحديث المشروع بنجاح",
+        });
+      } else {
+        const { error } = await supabase
+          .from('projects')
+          .insert([projectData]);
+
+        if (error) throw error;
+
+        toast({
+          title: "تم الإنشاء",
+          description: "تم إنشاء المشروع بنجاح",
+        });
+      }
+
+      resetProjectForm();
+      loadProjects();
+    } catch (error) {
+      console.error('Error saving project:', error);
       toast({
-        title: "تم التحديث",
-        description: "تم تحديث المشروع بنجاح",
-      });
-    } else {
-      const updatedProjects = [...existingProjects, projectData];
-      localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
-      setProjects(updatedProjects);
-      toast({
-        title: "تم الإنشاء",
-        description: "تم إنشاء المشروع بنجاح",
+        title: "خطأ",
+        description: "فشل في حفظ المشروع",
+        variant: "destructive",
       });
     }
-
-    resetProjectForm();
   };
 
   const handleEditProject = (project: Project) => {
@@ -170,18 +223,31 @@ export default function AdminDashboard() {
     setShowProjectForm(true);
   };
 
-  const handleDeleteProject = (id: string) => {
-    const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-    const updatedProjects = existingProjects.filter((project: Project) => project.id !== id);
-    localStorage.setItem('portfolio-projects', JSON.stringify(updatedProjects));
-    setProjects(updatedProjects);
-    toast({
-      title: "تم الحذف",
-      description: "تم حذف المشروع بنجاح",
-    });
+  const handleDeleteProject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف المشروع بنجاح",
+      });
+      loadProjects();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف المشروع",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleNotificationSubmit = (e: React.FormEvent) => {
+  const handleNotificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!notificationTitle.trim() || !notificationMessage.trim()) {
@@ -196,41 +262,63 @@ export default function AdminDashboard() {
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() + parseInt(expirationHours));
 
-    const newNotification: Notification = {
-      id: Date.now().toString(),
+    const newNotification = {
       title: notificationTitle.trim(),
       message: notificationMessage.trim(),
       type: notificationType,
       expires_at: expirationDate.toISOString(),
-      created_at: new Date().toISOString(),
     };
 
-    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-    const updatedNotifications = [...existingNotifications, newNotification];
-    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .insert([newNotification]);
 
-    setNotificationTitle('');
-    setNotificationMessage('');
-    setNotificationType('info');
-    setExpirationHours('24');
-    setShowNotificationForm(false);
+      if (error) throw error;
 
-    toast({
-      title: "تم النشر",
-      description: "تم نشر التحديث بنجاح",
-    });
+      setNotificationTitle('');
+      setNotificationMessage('');
+      setNotificationType('info');
+      setExpirationHours('24');
+      setShowNotificationForm(false);
+
+      toast({
+        title: "تم النشر",
+        description: "تم نشر التحديث بنجاح",
+      });
+      loadNotifications();
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في نشر التحديث",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteNotification = (id: string) => {
-    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-    const updatedNotifications = existingNotifications.filter((notif: Notification) => notif.id !== id);
-    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-    toast({
-      title: "تم الحذف",
-      description: "تم حذف التحديث بنجاح",
-    });
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف التحديث بنجاح",
+      });
+      loadNotifications();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف التحديث",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

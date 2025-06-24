@@ -99,6 +99,33 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          message: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          message: string
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          message?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -120,6 +147,63 @@ export type Database = {
           id?: string
           updated_at?: string | null
           username?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string | null
+          css_content: string | null
+          description: string
+          html_content: string
+          id: string
+          is_featured: boolean | null
+          js_content: string | null
+          technologies: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          css_content?: string | null
+          description: string
+          html_content: string
+          id?: string
+          is_featured?: boolean | null
+          js_content?: string | null
+          technologies?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          css_content?: string | null
+          description?: string
+          html_content?: string
+          id?: string
+          is_featured?: boolean | null
+          js_content?: string | null
+          technologies?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      site_config: {
+        Row: {
+          id: number
+          show_terminal: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          show_terminal?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          show_terminal?: boolean | null
+          updated_at?: string | null
         }
         Relationships: []
       }

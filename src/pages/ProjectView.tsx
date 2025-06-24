@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Project {
   id: string;
@@ -25,13 +26,31 @@ export default function ProjectView() {
 
   useEffect(() => {
     if (id) {
-      // Load project from localStorage
-      const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-      const foundProject = existingProjects.find((p: Project) => p.id === id);
-      setProject(foundProject || null);
-      setLoading(false);
+      loadProject();
     }
   }, [id]);
+
+  const loadProject = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error loading project:', error);
+        setProject(null);
+      } else {
+        setProject(data);
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      setProject(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const createWhatsAppLink = (message: string) => {
     const phoneNumber = "+218931303032";

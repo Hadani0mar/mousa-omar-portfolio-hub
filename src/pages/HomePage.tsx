@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Project {
   id: string;
@@ -37,41 +38,57 @@ export default function HomePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load projects from localStorage
-    const existingProjects = JSON.parse(localStorage.getItem('portfolio-projects') || '[]');
-    setProjects(existingProjects);
-
-    // Load notifications from localStorage
-    const existingNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-    const activeNotifications = existingNotifications.filter((notif: Notification) => 
-      new Date(notif.expires_at) > new Date()
-    );
-    setNotifications(activeNotifications);
-
-    // Load site settings
-    const settings = JSON.parse(localStorage.getItem('site-settings') || '{"show_terminal": true}');
-    setSiteSettings(settings);
+    loadData();
   }, []);
 
+  const loadData = async () => {
+    try {
+      // Load projects
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (projectsData) {
+        setProjects(projectsData);
+      }
+
+      // Load active notifications
+      const { data: notificationsData } = await supabase
+        .from('notifications')
+        .select('*')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+
+      if (notificationsData) {
+        setNotifications(notificationsData);
+      }
+
+      // Load site settings
+      const { data: settingsData } = await supabase
+        .from('site_config')
+        .select('*')
+        .single();
+
+      if (settingsData) {
+        setSiteSettings({ show_terminal: settingsData.show_terminal });
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const markNotificationsAsRead = () => {
-    const updatedNotifications = notifications.map(notif => ({ ...notif, read: true }));
-    setNotifications(updatedNotifications);
-    
-    // Update localStorage
-    const allNotifications = JSON.parse(localStorage.getItem('portfolio-notifications') || '[]');
-    const updatedAllNotifications = allNotifications.map((notif: Notification) => {
-      const found = updatedNotifications.find(n => n.id === notif.id);
-      return found ? { ...notif, read: true } : notif;
-    });
-    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedAllNotifications));
+    setNotifications(notifications.map(notif => ({ ...notif, read: true })));
   };
 
   const dismissNotification = (id: string) => {
-    const updatedNotifications = notifications.filter(notif => notif.id !== id);
-    setNotifications(updatedNotifications);
-    localStorage.setItem('portfolio-notifications', JSON.stringify(updatedNotifications));
+    setNotifications(notifications.filter(notif => notif.id !== id));
   };
 
   const createWhatsAppLink = (message: string) => {
@@ -101,6 +118,17 @@ export default function HomePage() {
     'Next.js', 'React.js', 'HTML', 'CSS', 'JavaScript', 'TypeScript',
     'Tailwind CSS', 'Node.js', 'Git', 'Responsive Design'
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">جاري تحميل المحتوى...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
