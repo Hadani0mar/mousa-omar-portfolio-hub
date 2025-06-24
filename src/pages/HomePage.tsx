@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { SEO } from '@/components/SEO';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Project {
@@ -127,6 +127,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <SEO />
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">جاري تحميل المحتوى...</p>
@@ -137,6 +138,13 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO 
+        title="موسى عمر - مطور مواقع ليبي | أفضل خدمات تطوير المواقع في ليبيا"
+        description="مطور مواقع ليبي محترف متخصص في React, Next.js, TypeScript. أقدم خدمات تطوير مواقع احترافية وحديثة في ليبيا. تواصل معي لتطوير موقعك الإلكتروني."
+        keywords="مطور مواقع ليبيا, تطوير مواقع احترافية, React Developer Libya, Next.js Libya, مطور ويب ليبي, برمجة مواقع ليبيا, موسى عمر"
+        url="https://www.m0usa.ly/"
+      />
+      
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -248,7 +256,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Skills Section */}
+        {/* Enhanced Skills Section with Schema */}
         <section className="space-y-6">
           <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
           <div className="flex flex-wrap justify-center gap-3">
@@ -258,6 +266,16 @@ export default function HomePage() {
               </Badge>
             ))}
           </div>
+          
+          {/* Structured Data for Skills */}
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Person",
+              "name": "موسى عمر",
+              "knowsAbout": skills
+            })}
+          </script>
         </section>
 
         {/* Featured Projects */}
