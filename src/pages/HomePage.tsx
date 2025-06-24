@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Github, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
@@ -64,7 +63,12 @@ export default function HomePage() {
         .order('created_at', { ascending: false });
 
       if (notificationsData) {
-        setNotifications(notificationsData);
+        // تحويل النوع إلى النوع المطلوب
+        const typedNotifications = notificationsData.map(notification => ({
+          ...notification,
+          type: notification.type as 'info' | 'success' | 'warning'
+        }));
+        setNotifications(typedNotifications);
       }
 
       // Load site settings

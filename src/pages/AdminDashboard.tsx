@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut } from 'lucide-react';
@@ -93,7 +92,12 @@ export default function AdminDashboard() {
     if (error) {
       console.error('Error loading notifications:', error);
     } else {
-      setNotifications(data || []);
+      // تحويل النوع إلى النوع المطلوب
+      const typedNotifications = (data || []).map(notification => ({
+        ...notification,
+        type: notification.type as 'info' | 'success' | 'warning'
+      }));
+      setNotifications(typedNotifications);
     }
   };
 
