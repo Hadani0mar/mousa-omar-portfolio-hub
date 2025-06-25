@@ -22,8 +22,8 @@ export const useAIChat = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Generate or get user identifier for guests
-  const getUserIdentifier = useCallback(() => {
-    const { data: { user } } = supabase.auth.getUser();
+  const getUserIdentifier = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
       return { userId: user.id, userIdentifier: null };
@@ -46,7 +46,7 @@ export const useAIChat = () => {
     setError(null);
 
     try {
-      const { userId, userIdentifier } = getUserIdentifier();
+      const { userId, userIdentifier } = await getUserIdentifier();
       
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
         body: {
@@ -74,7 +74,7 @@ export const useAIChat = () => {
 
   const loadConversation = useCallback(async () => {
     try {
-      const { userId, userIdentifier } = getUserIdentifier();
+      const { userId, userIdentifier } = await getUserIdentifier();
       
       const query = userId 
         ? supabase.from('chat_conversations').select('*').eq('user_id', userId)
@@ -87,7 +87,18 @@ export const useAIChat = () => {
       }
       
       if (data) {
-        setConversation(data);
+        // Parse messages from JSONB to ChatMessage array
+        const parsedMessages = Array.isArray(data.messages) 
+          ? data.messages as ChatMessage[]
+          : [];
+        
+        setConversation({
+          id: data.id,
+          messages: parsedMessages,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          title: data.title || undefined,
+        });
       }
     } catch (err) {
       console.error('Error loading conversation:', err);
@@ -97,7 +108,7 @@ export const useAIChat = () => {
 
   const clearConversation = useCallback(async () => {
     try {
-      const { userId, userIdentifier } = getUserIdentifier();
+      const { userId, userIdentifier } = await getUserIdentifier();
       
       const query = userId 
         ? supabase.from('chat_conversations').delete().eq('user_id', userId)
