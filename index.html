@@ -5,6 +5,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- Critical CSS Inlining -->
+    <style>
+      .loading-spinner {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .loading-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+    </style>
+    
     <!-- Primary Meta Tags -->
     <title>موسى عمر - مطور مواقع ليبي | Mousa Omar - Libyan Web Developer</title>
     <meta name="title" content="موسى عمر - مطور مواقع ليبي | Mousa Omar - Libyan Web Developer" />
@@ -51,6 +75,13 @@
     <!-- Contact Information -->
     <meta name="contact" content="+218931303032" />
     <meta name="copyright" content="موسى عمر - Mousa Omar" />
+    
+    <!-- Critical Resource Hints for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="//wa.me" />
+    <link rel="dns-prefetch" href="//facebook.com" />
+    <link rel="dns-prefetch" href="//vercel.com" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -122,19 +153,16 @@
       }
     }
     </script>
-    
-    <!-- Preconnect for Performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    
-    <!-- DNS Prefetch -->
-    <link rel="dns-prefetch" href="//wa.me" />
-    <link rel="dns-prefetch" href="//facebook.com" />
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading fallback -->
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p style="margin-top: 16px; color: #666;">جاري تحميل الموقع...</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

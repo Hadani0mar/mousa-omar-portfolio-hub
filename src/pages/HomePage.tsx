@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SEO } from '@/components/SEO';
 import { supabase } from '@/integrations/supabase/client';
+
+// Lazy load Analytics for better performance
+const Analytics = lazy(() => 
+  import('@vercel/analytics/react').then(module => ({ default: module.Analytics }))
+);
 
 interface Project {
   id: string;
@@ -64,7 +70,6 @@ export default function HomePage() {
         .order('created_at', { ascending: false });
 
       if (notificationsData) {
-        // تحويل النوع إلى النوع المطلوب
         const typedNotifications = notificationsData.map(notification => ({
           ...notification,
           type: notification.type as 'info' | 'success' | 'warning'
@@ -149,11 +154,11 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer">
+            <h1 className="text-xl font-bold text-blue-600 cursor-pointer">
               موسى عمر
             </h1>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
             {/* Terminal Link */}
             {siteSettings.show_terminal && (
               <Button variant="ghost" size="icon" asChild>
@@ -163,59 +168,88 @@ export default function HomePage() {
               </Button>
             )}
             
-            {/* Notification Bell */}
+            {/* Enhanced Notification Bell with better responsiveness */}
             <div className="relative">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleNotificationToggle}
-                className="relative"
+                className="relative transition-all duration-200 hover:scale-105"
+                aria-label="عرض الإشعارات"
               >
                 <Bell className="h-5 w-5" />
                 {unreadNotifications.length > 0 && !showNotifications && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center animate-pulse">
-                    {unreadNotifications.length}
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center animate-pulse min-w-[16px]">
+                    {unreadNotifications.length > 9 ? '9+' : unreadNotifications.length}
                   </span>
                 )}
               </Button>
 
-              {/* Notifications Dropdown */}
+              {/* Enhanced Responsive Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-72 sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                  <div className="p-4 border-b">
-                    <h3 className="font-semibold">التحديثات</h3>
-                  </div>
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground">
-                      لا توجد تحديثات جديدة
+                <>
+                  {/* Backdrop for mobile */}
+                  <div 
+                    className="fixed inset-0 bg-black/20 z-40 md:hidden"
+                    onClick={() => setShowNotifications(false)}
+                  />
+                  
+                  {/* Notifications panel */}
+                  <div className="absolute right-0 top-12 w-screen max-w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto md:max-h-96 transform transition-all duration-200 animate-in slide-in-from-top-2">
+                    <div className="p-4 border-b bg-card rounded-t-lg">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">التحديثات</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowNotifications(false)}
+                          className="h-8 w-8 p-0 hover:bg-accent/50"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="space-y-2 p-2">
-                      {notifications.map((notification) => (
-                        <div key={notification.id} className="p-3 border rounded-lg relative bg-card hover:bg-accent/50 transition-colors">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-1 right-1 h-6 w-6"
-                            onClick={() => dismissNotification(notification.id)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                          <div className="pr-8">
-                            <h4 className="font-medium text-sm mb-1">{notification.title}</h4>
-                            <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <Badge variant={notification.type === 'success' ? 'default' : notification.type === 'warning' ? 'destructive' : 'secondary'} className="text-xs">
-                                {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
-                              </Badge>
-                              <span>{formatDate(notification.created_at)}</span>
+                    
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-muted-foreground">
+                        <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>لا توجد تحديثات جديدة</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 p-2">
+                        {notifications.map((notification) => (
+                          <div key={notification.id} className="p-3 border rounded-lg relative bg-card hover:bg-accent/30 transition-all duration-200 group">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => dismissNotification(notification.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                            <div className="pr-8">
+                              <h4 className="font-medium text-sm mb-1 line-clamp-2">{notification.title}</h4>
+                              <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{notification.message}</p>
+                              <div className="flex items-center justify-between text-xs">
+                                <Badge 
+                                  variant={
+                                    notification.type === 'success' ? 'default' : 
+                                    notification.type === 'warning' ? 'destructive' : 
+                                    'secondary'
+                                  } 
+                                  className="text-xs px-2 py-0.5"
+                                >
+                                  {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
+                                </Badge>
+                                <span className="text-muted-foreground">{formatDate(notification.created_at)}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
             <ThemeToggle />
@@ -228,7 +262,7 @@ export default function HomePage() {
         <section className="text-center space-y-6 py-12">
           <div className="space-y-4">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              مرحباً، أنا <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">موسى عمر</span>
+              مرحباً، أنا <span className="text-blue-600">موسى عمر</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
               مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية
@@ -261,7 +295,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
           <div className="flex flex-wrap justify-center gap-3">
             {skills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="text-sm px-3 py-1">
+              <Badge key={skill} variant="secondary" className="text-sm px-3 py-1 hover:bg-accent transition-colors">
                 {skill}
               </Badge>
             ))}
@@ -296,7 +330,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
-                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{project.title}</CardTitle>
@@ -350,11 +384,16 @@ export default function HomePage() {
           </p>
           <Button asChild size="lg">
             <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
-              بدء محادثе
+              بدء محادثة
             </a>
           </Button>
         </section>
       </main>
+
+      {/* Lazy load Analytics for better performance */}
+      <Suspense fallback={null}>
+        <Analytics />
+      </Suspense>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Analytics } from '@vercel/analytics/react';
 import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/AuthProvider';
@@ -29,7 +28,6 @@ function App() {
               <Toaster />
             </div>
           </Router>
-          <Analytics />
         </AuthProvider>
       </ThemeProvider>
     </HelmetProvider>
@@ -37,4 +35,3 @@ function App() {
 }
 
 export default App;
-
