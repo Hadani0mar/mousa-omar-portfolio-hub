@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SEO } from '@/components/SEO';
+import { AIAssistant } from '@/components/AIAssistant';
 import { supabase } from '@/integrations/supabase/client';
 
 // Lazy load Analytics for better performance
@@ -45,6 +45,7 @@ export default function HomePage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
   const [loading, setLoading] = useState(true);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -389,6 +390,12 @@ export default function HomePage() {
           </Button>
         </section>
       </main>
+
+      {/* AI Assistant */}
+      <AIAssistant 
+        isOpen={showAIAssistant} 
+        onToggle={() => setShowAIAssistant(!showAIAssistant)} 
+      />
 
       {/* Lazy load Analytics for better performance */}
       <Suspense fallback={null}>

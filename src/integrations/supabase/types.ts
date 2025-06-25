@@ -48,7 +48,8 @@ export type Database = {
           messages: Json
           title: string | null
           updated_at: string | null
-          user_id: string
+          user_id: string | null
+          user_identifier: string | null
         }
         Insert: {
           context_summary?: string | null
@@ -58,7 +59,8 @@ export type Database = {
           messages?: Json
           title?: string | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
+          user_identifier?: string | null
         }
         Update: {
           context_summary?: string | null
@@ -68,7 +70,8 @@ export type Database = {
           messages?: Json
           title?: string | null
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
+          user_identifier?: string | null
         }
         Relationships: []
       }
