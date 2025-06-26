@@ -37,6 +37,8 @@ Deno.serve(async (req) => {
       throw new Error('Message is required');
     }
 
+    console.log('Processing message:', message, 'from user:', userId || userIdentifier);
+
     // Get or create conversation
     let conversation;
     const conversationQuery = userId 
@@ -87,8 +89,10 @@ Deno.serve(async (req) => {
       throw new Error('Gemini API key not configured');
     }
 
+    console.log('Calling Gemini API...');
+
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: {
@@ -152,11 +156,17 @@ ${conversationHistory}
       }
     );
 
+    console.log('Gemini API response status:', geminiResponse.status);
+
     if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.statusText}`);
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error response:', errorText);
+      throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorText}`);
     }
 
     const geminiData = await geminiResponse.json();
+    console.log('Gemini API response data:', geminiData);
+
     const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'عذراً، لم أتمكن من معالجة طلبك.';
 
     // Add AI response to conversation
@@ -178,7 +188,12 @@ ${conversationHistory}
       })
       .eq('id', conversation.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      throw updateError;
+    }
+
+    console.log('Successfully processed message and updated conversation');
 
     return new Response(
       JSON.stringify({

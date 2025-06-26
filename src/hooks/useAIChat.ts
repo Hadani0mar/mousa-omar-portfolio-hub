@@ -66,6 +66,8 @@ export const useAIChat = () => {
     try {
       const { userId, userIdentifier } = await getUserIdentifier();
       
+      console.log('Sending message to chat-with-ai function:', { message, userId, userIdentifier });
+      
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
         body: {
           message: message.trim(),
@@ -74,16 +76,21 @@ export const useAIChat = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
+
+      console.log('Received response from chat-with-ai function:', data);
 
       // Refresh conversation data
       await loadConversation();
       
       return data?.response;
     } catch (err) {
+      console.error('Error sending message:', err);
       const errorMessage = err instanceof Error ? err.message : 'حدث خطأ في إرسال الرسالة';
       setError(errorMessage);
-      console.error('Error sending message:', err);
       throw err;
     } finally {
       setIsLoading(false);
@@ -101,6 +108,7 @@ export const useAIChat = () => {
       const { data, error } = await query.maybeSingle();
       
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error loading conversation:', error);
         throw error;
       }
       
