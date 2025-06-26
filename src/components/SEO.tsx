@@ -10,10 +10,10 @@ interface SEOProps {
   type?: string;
 }
 
-export const SEO = ({ 
-  title = "موسى عمر - مطور مواقع ليبي",
-  description = "مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية باستخدام React, Next.js, TypeScript",
-  keywords = "مطور مواقع, ليبيا, React, Next.js, TypeScript, تطوير واجهات, مواقع احترافية",
+export const SEO = ({
+  title = "موسى عمر هداني - مطور مواقع ليبي | Hadani Libya Web Developer",
+  description = "موسى عمر هاداني، مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية باستخدام React, Next.js, TypeScript. أقدم خدمات تطوير الويب الاحترافية في ليبيا، بما في ذلك المشاريع المتعلقة بـ Hadani Libya.",
+  keywords = "مطور مواقع, ليبيا, React, Next.js, TypeScript, تطوير واجهات, مواقع احترافية, hadani libya, hadani, libya, هاداني ليبيا, هاداني, ليبيا, موسى عمر هاداني, موسى هاداني",
   image = "https://www.m0usa.ly/og-image.jpg",
   url = "https://www.m0usa.ly/",
   type = "website"
@@ -45,4 +45,6 @@ export const SEO = ({
     </Helmet>
   );
 };
+
+
 
