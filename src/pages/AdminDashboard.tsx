@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut, Settings, Bot, Sliders } from 'lucide-react';
@@ -8,10 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProjectForm } from '@/components/admin/ProjectForm';
+import { NotificationForm } from '@/components/admin/NotificationForm';
+import { SkillsManager } from '@/components/admin/SkillsManager';
 
 interface Project {
   id: string;
@@ -451,8 +454,9 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="projects">إدارة المشاريع</TabsTrigger>
+            <TabsTrigger value="skills">إدارة المهارات</TabsTrigger>
             <TabsTrigger value="notifications">التحديثات</TabsTrigger>
             <TabsTrigger value="ai-settings">تعليمات الـ AI</TabsTrigger>
             <TabsTrigger value="advanced-settings">الإعدادات المتقدمة</TabsTrigger>
@@ -469,131 +473,30 @@ export default function AdminDashboard() {
               </Button>
             </div>
 
-            {/* Project Form */}
-            {showProjectForm && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{editingProject ? 'تعديل المشروع' : 'إضافة مشروع جديد'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleProjectSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="title">اسم المشروع *</Label>
-                        <Input
-                          id="title"
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="technologies">التقنيات المستخدمة (مفصولة بفاصلة)</Label>
-                        <Input
-                          id="technologies"
-                          value={technologies}
-                          onChange={(e) => setTechnologies(e.target.value)}
-                          placeholder="HTML, CSS, JavaScript"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="display-order">ترتيب العرض</Label>
-                        <Input
-                          id="display-order"
-                          type="number"
-                          value={displayOrder}
-                          onChange={(e) => setDisplayOrder(parseInt(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="description">وصف المشروع *</Label>
-                      <Textarea
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        rows={3}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="html">كود HTML *</Label>
-                      <Textarea
-                        id="html"
-                        value={htmlContent}
-                        onChange={(e) => setHtmlContent(e.target.value)}
-                        rows={6}
-                        className="font-mono text-sm"
-                        placeholder="<!DOCTYPE html>..."
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="css">كود CSS (اختياري)</Label>
-                        <Textarea
-                          id="css"
-                          value={cssContent}
-                          onChange={(e) => setCssContent(e.target.value)}
-                          rows={6}
-                          className="font-mono text-sm"
-                          placeholder="body { ... }"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="js">كود JavaScript (اختياري)</Label>
-                        <Textarea
-                          id="js"
-                          value={jsContent}
-                          onChange={(e) => setJsContent(e.target.value)}
-                          rows={6}
-                          className="font-mono text-sm"
-                          placeholder="console.log('Hello');"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 items-center">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="featured"
-                          checked={isFeatured}
-                          onChange={(e) => setIsFeatured(e.target.checked)}
-                          className="rounded"
-                        />
-                        <Label htmlFor="featured">مشروع مميز</Label>
-                      </div>
-                      <div>
-                        <Label htmlFor="status">حالة المشروع</Label>
-                        <Select value={projectStatus} onValueChange={setProjectStatus}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="active">نشط</SelectItem>
-                            <SelectItem value="inactive">غير نشط</SelectItem>
-                            <SelectItem value="draft">مسودة</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button type="submit">
-                        {editingProject ? 'تحديث المشروع' : 'إضافة المشروع'}
-                      </Button>
-                      <Button type="button" variant="outline" onClick={resetProjectForm}>
-                        إلغاء
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
+            <ProjectForm
+              showForm={showProjectForm}
+              editingProject={editingProject}
+              title={title}
+              setTitle={setTitle}
+              description={description}
+              setDescription={setDescription}
+              technologies={technologies}
+              setTechnologies={setTechnologies}
+              htmlContent={htmlContent}
+              setHtmlContent={setHtmlContent}
+              cssContent={cssContent}
+              setCssContent={setCssContent}
+              jsContent={jsContent}
+              setJsContent={setJsContent}
+              isFeatured={isFeatured}
+              setIsFeatured={setIsFeatured}
+              displayOrder={displayOrder}
+              setDisplayOrder={setDisplayOrder}
+              projectStatus={projectStatus}
+              setProjectStatus={setProjectStatus}
+              onSubmit={handleProjectSubmit}
+              onCancel={resetProjectForm}
+            />
 
             {/* Projects List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -636,6 +539,11 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
+          {/* Skills Tab */}
+          <TabsContent value="skills">
+            <SkillsManager />
+          </TabsContent>
+
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
             <div className="flex justify-between items-center">
@@ -646,77 +554,19 @@ export default function AdminDashboard() {
               </Button>
             </div>
 
-            {/* Notification Form */}
-            {showNotificationForm && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>إضافة تحديث جديد</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleNotificationSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="notif-title">عنوان التحديث</Label>
-                      <Input
-                        id="notif-title"
-                        value={notificationTitle}
-                        onChange={(e) => setNotificationTitle(e.target.value)}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="notif-message">نص التحديث</Label>
-                      <Textarea
-                        id="notif-message"
-                        value={notificationMessage}
-                        onChange={(e) => setNotificationMessage(e.target.value)}
-                        rows={3}
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="notif-type">نوع التحديث</Label>
-                        <Select value={notificationType} onValueChange={(value: 'info' | 'success' | 'warning') => setNotificationType(value)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="info">معلومة</SelectItem>
-                            <SelectItem value="success">نجاح</SelectItem>
-                            <SelectItem value="warning">تحذير</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="expiration">مدة العرض (ساعات)</Label>
-                        <Select value={expirationHours} onValueChange={setExpirationHours}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">ساعة واحدة</SelectItem>
-                            <SelectItem value="6">6 ساعات</SelectItem>
-                            <SelectItem value="12">12 ساعة</SelectItem>
-                            <SelectItem value="24">24 ساعة</SelectItem>
-                            <SelectItem value="48">48 ساعة</SelectItem>
-                            <SelectItem value="168">أسبوع</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button type="submit">نشر التحديث</Button>
-                      <Button type="button" variant="outline" onClick={() => setShowNotificationForm(false)}>
-                        إلغاء
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
+            <NotificationForm
+              showForm={showNotificationForm}
+              title={notificationTitle}
+              setTitle={setNotificationTitle}
+              message={notificationMessage}
+              setMessage={setNotificationMessage}
+              type={notificationType}
+              setType={setNotificationType}
+              expirationHours={expirationHours}
+              setExpirationHours={setExpirationHours}
+              onSubmit={handleNotificationSubmit}
+              onCancel={() => setShowNotificationForm(false)}
+            />
 
             {/* Notifications List */}
             <div className="space-y-4">
@@ -736,15 +586,19 @@ export default function AdminDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground mb-2">{notification.message}</p>
+                    <div className="bg-muted p-3 rounded-lg mb-2">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        {notification.message}
+                      </p>
+                    </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {new Date(notification.created_at).toLocaleDateString('ar-SA')}
+                        {new Date(notification.created_at).toLocaleDateString('en-GB')}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        ينتهي: {new Date(notification.expires_at).toLocaleDateString('ar-SA')}
+                        ينتهي: {new Date(notification.expires_at).toLocaleDateString('en-GB')}
                       </div>
                     </div>
                   </CardContent>
