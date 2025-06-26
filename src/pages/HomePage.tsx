@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SEO } from '@/components/SEO';
 import { AIAssistant } from '@/components/AIAssistant';
+import { ProjectSlider } from '@/components/ProjectSlider';
 import { supabase } from '@/integrations/supabase/client';
 
 // Lazy load Analytics for better performance
@@ -23,6 +25,8 @@ interface Project {
   css_content?: string;
   js_content?: string;
   is_featured: boolean;
+  display_order: number;
+  project_status: string;
 }
 
 interface Notification {
@@ -39,11 +43,18 @@ interface SiteSettings {
   show_terminal: boolean;
 }
 
+interface AdvancedSetting {
+  setting_key: string;
+  setting_value: string;
+  setting_type: string;
+}
+
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
@@ -57,7 +68,8 @@ export default function HomePage() {
       const { data: projectsData } = await supabase
         .from('projects')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('project_status', 'active')
+        .order('display_order', { ascending: true });
 
       if (projectsData) {
         setProjects(projectsData);
@@ -87,11 +99,25 @@ export default function HomePage() {
       if (settingsData) {
         setSiteSettings({ show_terminal: settingsData.show_terminal });
       }
+
+      // Load advanced settings
+      const { data: advancedSettingsData } = await supabase
+        .from('advanced_settings')
+        .select('*');
+
+      if (advancedSettingsData) {
+        setAdvancedSettings(advancedSettingsData);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAdvancedSetting = (key: string, defaultValue: string = '') => {
+    const setting = advancedSettings.find(s => s.setting_key === key);
+    return setting ? setting.setting_value : defaultValue;
   };
 
   const markNotificationsAsRead = () => {
@@ -141,6 +167,18 @@ export default function HomePage() {
       </div>
     );
   }
+
+  // Get dynamic settings
+  const heroTitle = getAdvancedSetting('hero_title', 'مرحباً، أنا موسى عمر');
+  const heroSubtitle = getAdvancedSetting('hero_subtitle', 'مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية');
+  const projectsPerSlide = parseInt(getAdvancedSetting('projects_per_slide', '3'));
+  const autoSlideInterval = parseInt(getAdvancedSetting('auto_slide_interval', '5000'));
+  const showProjectSlider = getAdvancedSetting('show_project_slider', 'true') === 'true';
+  const maxFeaturedProjects = parseInt(getAdvancedSetting('max_featured_projects', '6'));
+
+  // Filter featured projects
+  const featuredProjects = projects.filter(p => p.is_featured).slice(0, maxFeaturedProjects);
+  const displayProjects = showProjectSlider ? projects : featuredProjects;
 
   return (
     <div className="min-h-screen bg-background">
@@ -263,10 +301,19 @@ export default function HomePage() {
         <section className="text-center space-y-6 py-12">
           <div className="space-y-4">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              مرحباً، أنا <span className="text-blue-600">موسى عمر</span>
+              {heroTitle.split(' ').map((word, index) => (
+                <span key={index}>
+                  {word === 'موسى' || word === 'عمر' ? (
+                    <span className="text-blue-600">{word}</span>
+                  ) : (
+                    word
+                  )}
+                  {index < heroTitle.split(' ').length - 1 ? ' ' : ''}
+                </span>
+              ))}
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية
+              {heroSubtitle}
             </p>
           </div>
           
@@ -313,24 +360,27 @@ export default function HomePage() {
           </script>
         </section>
 
-        {/* Featured Projects */}
+        {/* Projects Section */}
         <section className="space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">المشاريع المميزة</h2>
+            <h2 className="text-3xl font-bold">
+              {showProjectSlider ? 'جميع المشاريع' : 'المشاريع المميزة'}
+            </h2>
             <p className="text-muted-foreground">
               مجموعة من أحدث أعمالي في تطوير المواقع والتطبيقات
             </p>
           </div>
 
-          {projects.length === 0 ? (
-            <Card className="text-center p-12">
-              <CardContent>
-                <p className="text-muted-foreground">لا توجد مشاريع متاحة حالياً</p>
-              </CardContent>
-            </Card>
+          {showProjectSlider ? (
+            <ProjectSlider 
+              projects={displayProjects}
+              projectsPerSlide={projectsPerSlide}
+              autoSlideInterval={autoSlideInterval}
+              showAutoSlide={true}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
+              {displayProjects.map((project) => (
                 <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                   <CardHeader>
                     <div className="flex items-center justify-between">

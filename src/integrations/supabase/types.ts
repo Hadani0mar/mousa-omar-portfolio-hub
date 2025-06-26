@@ -9,6 +9,63 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      advanced_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          setting_key: string
+          setting_type: string
+          setting_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_type?: string
+          setting_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_type?: string
+          setting_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ai_instructions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          instruction_key: string
+          instruction_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          instruction_key: string
+          instruction_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          instruction_key?: string
+          instruction_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_model_settings: {
         Row: {
           created_at: string
@@ -158,10 +215,12 @@ export type Database = {
           created_at: string | null
           css_content: string | null
           description: string
+          display_order: number | null
           html_content: string
           id: string
           is_featured: boolean | null
           js_content: string | null
+          project_status: string | null
           technologies: string[] | null
           title: string
           updated_at: string | null
@@ -170,10 +229,12 @@ export type Database = {
           created_at?: string | null
           css_content?: string | null
           description: string
+          display_order?: number | null
           html_content: string
           id?: string
           is_featured?: boolean | null
           js_content?: string | null
+          project_status?: string | null
           technologies?: string[] | null
           title: string
           updated_at?: string | null
@@ -182,10 +243,12 @@ export type Database = {
           created_at?: string | null
           css_content?: string | null
           description?: string
+          display_order?: number | null
           html_content?: string
           id?: string
           is_featured?: boolean | null
           js_content?: string | null
+          project_status?: string | null
           technologies?: string[] | null
           title?: string
           updated_at?: string | null

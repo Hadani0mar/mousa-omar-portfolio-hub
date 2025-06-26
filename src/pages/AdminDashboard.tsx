@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut, Settings, Bot, Sliders } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,8 @@ interface Project {
   css_content?: string;
   js_content?: string;
   is_featured: boolean;
+  display_order: number;
+  project_status: string;
 }
 
 interface Notification {
@@ -33,6 +35,21 @@ interface Notification {
   created_at: string;
 }
 
+interface AIInstruction {
+  id: string;
+  instruction_key: string;
+  instruction_value: string;
+  description?: string;
+}
+
+interface AdvancedSetting {
+  id: string;
+  setting_key: string;
+  setting_value: string;
+  setting_type: string;
+  description?: string;
+}
+
 interface SiteSettings {
   show_terminal: boolean;
 }
@@ -40,6 +57,8 @@ interface SiteSettings {
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [aiInstructions, setAiInstructions] = useState<AIInstruction[]>([]);
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showNotificationForm, setShowNotificationForm] = useState(false);
@@ -54,6 +73,8 @@ export default function AdminDashboard() {
   const [cssContent, setCssContent] = useState('');
   const [jsContent, setJsContent] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
+  const [displayOrder, setDisplayOrder] = useState(0);
+  const [projectStatus, setProjectStatus] = useState('active');
 
   // Notification form state
   const [notificationTitle, setNotificationTitle] = useState('');
@@ -67,14 +88,20 @@ export default function AdminDashboard() {
   }, []);
 
   const loadData = async () => {
-    await Promise.all([loadProjects(), loadNotifications(), loadSiteSettings()]);
+    await Promise.all([
+      loadProjects(), 
+      loadNotifications(), 
+      loadSiteSettings(), 
+      loadAIInstructions(),
+      loadAdvancedSettings()
+    ]);
   };
 
   const loadProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('display_order', { ascending: true });
 
     if (error) {
       console.error('Error loading projects:', error);
@@ -92,7 +119,6 @@ export default function AdminDashboard() {
     if (error) {
       console.error('Error loading notifications:', error);
     } else {
-      // تحويل النوع إلى النوع المطلوب
       const typedNotifications = (data || []).map(notification => ({
         ...notification,
         type: notification.type as 'info' | 'success' | 'warning'
@@ -111,6 +137,32 @@ export default function AdminDashboard() {
       console.error('Error loading site settings:', error);
     } else if (data) {
       setSiteSettings({ show_terminal: data.show_terminal });
+    }
+  };
+
+  const loadAIInstructions = async () => {
+    const { data, error } = await supabase
+      .from('ai_instructions')
+      .select('*')
+      .order('instruction_key', { ascending: true });
+
+    if (error) {
+      console.error('Error loading AI instructions:', error);
+    } else {
+      setAiInstructions(data || []);
+    }
+  };
+
+  const loadAdvancedSettings = async () => {
+    const { data, error } = await supabase
+      .from('advanced_settings')
+      .select('*')
+      .order('setting_key', { ascending: true });
+
+    if (error) {
+      console.error('Error loading advanced settings:', error);
+    } else {
+      setAdvancedSettings(data || []);
     }
   };
 
@@ -138,6 +190,56 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateAIInstruction = async (id: string, newValue: string) => {
+    const { error } = await supabase
+      .from('ai_instructions')
+      .update({ 
+        instruction_value: newValue,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating AI instruction:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث تعليمات الذكاء الاصطناعي",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث تعليمات الذكاء الاصطناعي بنجاح",
+      });
+      loadAIInstructions();
+    }
+  };
+
+  const updateAdvancedSetting = async (id: string, newValue: string) => {
+    const { error } = await supabase
+      .from('advanced_settings')
+      .update({ 
+        setting_value: newValue,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating advanced setting:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث الإعدادات المتقدمة",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث الإعدادات المتقدمة بنجاح",
+      });
+      loadAdvancedSettings();
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/admin');
@@ -151,6 +253,8 @@ export default function AdminDashboard() {
     setCssContent('');
     setJsContent('');
     setIsFeatured(false);
+    setDisplayOrder(0);
+    setProjectStatus('active');
     setEditingProject(null);
     setShowProjectForm(false);
   };
@@ -175,6 +279,8 @@ export default function AdminDashboard() {
       css_content: cssContent || null,
       js_content: jsContent || null,
       is_featured: isFeatured,
+      display_order: displayOrder || Math.floor(Date.now() / 1000),
+      project_status: projectStatus,
     };
 
     try {
@@ -224,6 +330,8 @@ export default function AdminDashboard() {
     setCssContent(project.css_content || '');
     setJsContent(project.js_content || '');
     setIsFeatured(project.is_featured);
+    setDisplayOrder(project.display_order || 0);
+    setProjectStatus(project.project_status || 'active');
     setShowProjectForm(true);
   };
 
@@ -343,10 +451,12 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="projects">إدارة المشاريع</TabsTrigger>
             <TabsTrigger value="notifications">التحديثات</TabsTrigger>
-            <TabsTrigger value="settings">إعدادات الموقع</TabsTrigger>
+            <TabsTrigger value="ai-settings">تعليمات الـ AI</TabsTrigger>
+            <TabsTrigger value="advanced-settings">الإعدادات المتقدمة</TabsTrigger>
+            <TabsTrigger value="site-settings">إعدادات الموقع</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab */}
@@ -367,7 +477,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleProjectSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="title">اسم المشروع *</Label>
                         <Input
@@ -384,6 +494,15 @@ export default function AdminDashboard() {
                           value={technologies}
                           onChange={(e) => setTechnologies(e.target.value)}
                           placeholder="HTML, CSS, JavaScript"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="display-order">ترتيب العرض</Label>
+                        <Input
+                          id="display-order"
+                          type="number"
+                          value={displayOrder}
+                          onChange={(e) => setDisplayOrder(parseInt(e.target.value))}
                         />
                       </div>
                     </div>
@@ -437,15 +556,30 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="featured"
-                        checked={isFeatured}
-                        onChange={(e) => setIsFeatured(e.target.checked)}
-                        className="rounded"
-                      />
-                      <Label htmlFor="featured">مشروع مميز</Label>
+                    <div className="flex flex-wrap gap-4 items-center">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="featured"
+                          checked={isFeatured}
+                          onChange={(e) => setIsFeatured(e.target.checked)}
+                          className="rounded"
+                        />
+                        <Label htmlFor="featured">مشروع مميز</Label>
+                      </div>
+                      <div>
+                        <Label htmlFor="status">حالة المشروع</Label>
+                        <Select value={projectStatus} onValueChange={setProjectStatus}>
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">نشط</SelectItem>
+                            <SelectItem value="inactive">غير نشط</SelectItem>
+                            <SelectItem value="draft">مسودة</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -468,7 +602,10 @@ export default function AdminDashboard() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{project.title}</CardTitle>
-                      {project.is_featured && <Badge>مميز</Badge>}
+                      <div className="flex gap-2">
+                        {project.is_featured && <Badge>مميز</Badge>}
+                        <Badge variant="outline">{project.project_status}</Badge>
+                      </div>
                     </div>
                     <CardDescription className="line-clamp-2">
                       {project.description}
@@ -616,10 +753,137 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Site Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
+          {/* AI Instructions Tab */}
+          <TabsContent value="ai-settings" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">إعدادات الموقع</h2>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Bot className="h-6 w-6" />
+                تعليمات الذكاء الاصطناعي
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {aiInstructions.map((instruction) => (
+                <Card key={instruction.id}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{instruction.instruction_key}</CardTitle>
+                    {instruction.description && (
+                      <CardDescription>{instruction.description}</CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <Textarea
+                        value={instruction.instruction_value}
+                        onChange={(e) => {
+                          const updatedInstructions = aiInstructions.map(inst =>
+                            inst.id === instruction.id 
+                              ? { ...inst, instruction_value: e.target.value }
+                              : inst
+                          );
+                          setAiInstructions(updatedInstructions);
+                        }}
+                        rows={instruction.instruction_key === 'system_prompt' ? 8 : 3}
+                        className="font-mono text-sm"
+                      />
+                      <Button 
+                        onClick={() => updateAIInstruction(instruction.id, instruction.instruction_value)}
+                        size="sm"
+                      >
+                        حفظ التعديلات
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Advanced Settings Tab */}
+          <TabsContent value="advanced-settings" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Sliders className="h-6 w-6" />
+                الإعدادات المتقدمة
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {advancedSettings.map((setting) => (
+                <Card key={setting.id}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{setting.setting_key}</CardTitle>
+                    {setting.description && (
+                      <CardDescription>{setting.description}</CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {setting.setting_type === 'boolean' ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={setting.id}
+                            checked={setting.setting_value === 'true'}
+                            onChange={(e) => {
+                              const newValue = e.target.checked ? 'true' : 'false';
+                              const updatedSettings = advancedSettings.map(s =>
+                                s.id === setting.id 
+                                  ? { ...s, setting_value: newValue }
+                                  : s
+                              );
+                              setAdvancedSettings(updatedSettings);
+                            }}
+                            className="rounded"
+                          />
+                          <Label htmlFor={setting.id}>تفعيل</Label>
+                        </div>
+                      ) : setting.setting_type === 'number' ? (
+                        <Input
+                          type="number"
+                          value={setting.setting_value}
+                          onChange={(e) => {
+                            const updatedSettings = advancedSettings.map(s =>
+                              s.id === setting.id 
+                                ? { ...s, setting_value: e.target.value }
+                                : s
+                            );
+                            setAdvancedSettings(updatedSettings);
+                          }}
+                        />
+                      ) : (
+                        <Input
+                          value={setting.setting_value}
+                          onChange={(e) => {
+                            const updatedSettings = advancedSettings.map(s =>
+                              s.id === setting.id 
+                                ? { ...s, setting_value: e.target.value }
+                                : s
+                            );
+                            setAdvancedSettings(updatedSettings);
+                          }}
+                        />
+                      )}
+                      <Button 
+                        onClick={() => updateAdvancedSetting(setting.id, setting.setting_value)}
+                        size="sm"
+                      >
+                        حفظ التعديلات
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Site Settings Tab */}
+          <TabsContent value="site-settings" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Settings className="h-6 w-6" />
+                إعدادات الموقع
+              </h2>
             </div>
 
             <Card>

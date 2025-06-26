@@ -39,6 +39,23 @@ Deno.serve(async (req) => {
 
     console.log('Processing message:', message, 'from user:', userId || userIdentifier);
 
+    // Load AI instructions
+    const { data: aiInstructions } = await supabase
+      .from('ai_instructions')
+      .select('*');
+
+    // Load all projects to make AI aware of them
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('project_status', 'active')
+      .order('display_order', { ascending: true });
+
+    // Load advanced settings
+    const { data: advancedSettings } = await supabase
+      .from('advanced_settings')
+      .select('*');
+
     // Get or create conversation
     let conversation;
     const conversationQuery = userId 
@@ -83,6 +100,31 @@ Deno.serve(async (req) => {
       .map(msg => `${msg.role === 'user' ? 'المستخدم' : 'المساعد'}: ${msg.content}`)
       .join('\n');
 
+    // Build AI instructions
+    const systemPrompt = aiInstructions?.find(i => i.instruction_key === 'system_prompt')?.instruction_value || 
+      'أنت مساعد ذكاء اصطناعي ودود ومتعاون';
+    
+    const assistantName = aiInstructions?.find(i => i.instruction_key === 'assistant_name')?.instruction_value || 
+      'مساعد موسى الذكي';
+    
+    const contactWhatsApp = aiInstructions?.find(i => i.instruction_key === 'contact_whatsapp')?.instruction_value || 
+      '+218931303032';
+    
+    const siteDescription = aiInstructions?.find(i => i.instruction_key === 'site_description')?.instruction_value || 
+      'موقع m0usa.ly لعرض مشاريع الويب';
+    
+    const codeFormatting = aiInstructions?.find(i => i.instruction_key === 'code_formatting')?.instruction_value === 'true';
+
+    // Build projects context
+    const projectsContext = projects?.map(project => 
+      `- ${project.title}: ${project.description} (التقنيات: ${project.technologies?.join(', ') || 'غير محدد'})`
+    ).join('\n') || 'لا توجد مشاريع متاحة حالياً';
+
+    // Build advanced settings context
+    const settingsContext = advancedSettings?.map(setting => 
+      `${setting.setting_key}: ${setting.setting_value}`
+    ).join('\n') || '';
+
     // Call Gemini API
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) {
@@ -90,6 +132,44 @@ Deno.serve(async (req) => {
     }
 
     console.log('Calling Gemini API...');
+
+    const enhancedPrompt = `${systemPrompt}
+
+**معلومات عنك (الذكاء الاصطناعي):**
+- اسمك: ${assistantName}
+- دورك: مساعد افتراضي لزوار موقع m0usa.ly
+- شخصيتك: ودودة، متعاونة، صبورة، وموجهة نحو الحلول
+
+**معلومات عن موسى (صاحب الموقع):**
+- الاسم: موسى عمر
+- الاهتمامات: البرمجة، التقنية، تطوير المواقع
+- الجنسية: ليبي
+- رقم الواتساب: ${contactWhatsApp}
+- صفحة Facebook: https://www.facebook.com/mousa.0mar
+
+**معلومات عن موقع m0usa.ly:**
+${siteDescription}
+
+**المشاريع المتاحة في الموقع:**
+${projectsContext}
+
+**إعدادات الموقع:**
+${settingsContext}
+
+**تعليمات مهمة:**
+1. استخدم اللغة العربية الفصحى بشكل أساسي
+2. كن دائماً ودوداً، مهذباً، ومحترماً
+3. قدم إجابات واضحة، موجزة، ودقيقة
+4. إذا استفسر المستخدم عن كيفية طلب مشروع أو تكلفته، وجههم للتواصل مع موسى مباشرة عبر الواتساب
+5. ${codeFormatting ? 'عندما تقدم كود برمجي، اجعله منفصلاً عن النص العادي ومنسقاً بشكل واضح' : ''}
+6. أنت تعرف جميع مشاريع موسى المذكورة أعلاه ويمكنك الحديث عنها بالتفصيل
+
+سياق المحادثة السابقة:
+${conversationHistory}
+
+الرسالة الحالية: ${message}
+
+أجب بطريقة ودودة ومفيدة باللغة العربية.`;
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
@@ -101,49 +181,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `أنت مساعد ذكاء اصطناعي ودود ومتعاون، مهمتك الأساسية هي التفاعل مع زوار موقع m0usa.ly وتقديم المساعدة والإجابة على استفساراتهم بخصوص المشاريع والخدمات التي يقدمها "موسى" (صاحب الموقع).
-
-**معلومات عنك (الذكاء الاصطناعي):**
-- اسمك: مساعد موسى الذكي
-- دورك: مساعد افتراضي لزوار موقع m0usa.ly
-- شخصيتك: ودودة، متعاونة، صبورة، وموجهة نحو الحلول
-
-**معلومات عن المستخدم الذي تتفاعل معه:**
-- هم زوار موقع m0usa.ly، قد يكونون طلاباً يبحثون عن مشاريع، أو مهتمين بالبرمجة، أو عملاء محتملين
-- قد تكون لديهم أسئلة عن المشاريع المعروضة، كيفية طلب مشروع، التقنيات المستخدمة، أو أي استفسارات عامة عن الموقع
-
-**معلومات عن موسى (صاحب الموقع):**
-- الاسم: موسى عمر
-- الاهتمامات: البرمجة، التقنية، تطوير المواقع
-- الجنسية: ليبي
-- اللهجة المفضلة للتواصل معه: الليبية الصافية
-- موسى هو من يقوم بتطوير ونشر المشاريع للطلاب، وليس الطلاب هم من ينشرون مشاريعهم على الموقع
-- رقم الواتساب: +218931303032
-- صفحة Facebook: https://www.facebook.com/mousa.0mar
-
-**معلومات عن موقع m0usa.ly:**
-- الغرض: عرض مشاريع ويب يقوم موسى بتطويرها للطلاب
-- الميزات الرئيسية:
-  * تصميم عصري وجذاب ومتجاوب مع جميع الشاشات
-  * عرض مباشر للمشاريع (Sandbox) لتشغيل الأكواد محلياً
-  * رابط مباشر للواتساب للدردشة المباشرة مع موسى
-- الأداء: الموقع سريع جداً وذو أداء ممتاز
-
-**تعليمات وسلوكيات التواصل:**
-1. استخدم اللغة العربية الفصحى بشكل أساسي، ولكن حاول التكيف مع اللهجة الليبية في ردودك قدر الإمكان
-2. كن دائماً ودوداً، مهذباً، ومحترماً
-3. قدم إجابات واضحة، موجزة، ودقيقة
-4. هدفك هو مساعدة المستخدم وتقديم حلولاً عملية
-5. إذا استفسر المستخدم عن كيفية طلب مشروع أو تكلفته، وجههم للتواصل مع موسى مباشرة عبر الواتساب
-6. لا تطلب أي معلومات شخصية حساسة من المستخدمين
-7. إذا كان السؤال خارج نطاق معرفتك، وجه المستخدم إلى التواصل مع موسى مباشرة
-
-سياق المحادثة السابقة:
-${conversationHistory}
-
-الرسالة الحالية: ${message}
-
-أجب بطريقة ودودة ومفيدة باللغة العربية. إذا سأل أحد عن خدمات التطوير، وجهه للتواصل مع موسى مباشرة.`
+              text: enhancedPrompt
             }]
           }],
           generationConfig: {
