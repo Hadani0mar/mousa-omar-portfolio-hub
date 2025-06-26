@@ -16,6 +16,24 @@ export interface ChatConversation {
   title?: string;
 }
 
+// Helper function to safely parse messages from Json to ChatMessage[]
+const parseMessages = (messagesJson: any): ChatMessage[] => {
+  if (!Array.isArray(messagesJson)) {
+    return [];
+  }
+  
+  return messagesJson.filter((msg): msg is ChatMessage => {
+    return (
+      msg &&
+      typeof msg === 'object' &&
+      typeof msg.role === 'string' &&
+      (msg.role === 'user' || msg.role === 'assistant') &&
+      typeof msg.content === 'string' &&
+      typeof msg.timestamp === 'string'
+    );
+  });
+};
+
 export const useAIChat = () => {
   const [conversation, setConversation] = useState<ChatConversation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,10 +105,8 @@ export const useAIChat = () => {
       }
       
       if (data) {
-        // Parse messages from JSONB to ChatMessage array
-        const parsedMessages = Array.isArray(data.messages) 
-          ? data.messages as ChatMessage[]
-          : [];
+        // Parse messages from JSONB using our helper function
+        const parsedMessages = parseMessages(data.messages);
         
         setConversation({
           id: data.id,
