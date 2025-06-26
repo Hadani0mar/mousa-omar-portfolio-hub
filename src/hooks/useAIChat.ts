@@ -61,7 +61,7 @@ export const useAIChat = () => {
       // Refresh conversation data
       await loadConversation();
       
-      return data.response;
+      return data?.response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'حدث خطأ في إرسال الرسالة';
       setError(errorMessage);
