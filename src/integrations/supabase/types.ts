@@ -210,16 +210,51 @@ export type Database = {
         }
         Relationships: []
       }
+      project_likes: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          ip_address: string | null
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          id?: string
+          ip_address?: string | null
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          ip_address?: string | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_likes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string | null
           css_content: string | null
           description: string
           display_order: number | null
+          download_count: number | null
+          download_enabled: boolean | null
           html_content: string
           id: string
           is_featured: boolean | null
           js_content: string | null
+          like_count: number | null
           project_status: string | null
           technologies: string[] | null
           title: string
@@ -230,10 +265,13 @@ export type Database = {
           css_content?: string | null
           description: string
           display_order?: number | null
+          download_count?: number | null
+          download_enabled?: boolean | null
           html_content: string
           id?: string
           is_featured?: boolean | null
           js_content?: string | null
+          like_count?: number | null
           project_status?: string | null
           technologies?: string[] | null
           title: string
@@ -244,10 +282,13 @@ export type Database = {
           css_content?: string | null
           description?: string
           display_order?: number | null
+          download_count?: number | null
+          download_enabled?: boolean | null
           html_content?: string
           id?: string
           is_featured?: boolean | null
           js_content?: string | null
+          like_count?: number | null
           project_status?: string | null
           technologies?: string[] | null
           title?: string
@@ -496,7 +537,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_download_count: {
+        Args: { project_id: string }
+        Returns: undefined
+      }
+      increment_like_count: {
+        Args: { project_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

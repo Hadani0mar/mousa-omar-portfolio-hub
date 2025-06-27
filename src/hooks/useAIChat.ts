@@ -49,7 +49,7 @@ export const useAIChat = () => {
         // Parse messages safely with proper type casting
         let parsedMessages: ChatMessage[] = [];
         if (data.messages && Array.isArray(data.messages)) {
-          parsedMessages = (data.messages as unknown[]).map((msg: any) => ({
+          parsedMessages = (data.messages as any[]).map((msg: any) => ({
             role: msg.role || 'user',
             content: msg.content || '',
             timestamp: msg.timestamp || new Date().toISOString()
@@ -59,7 +59,7 @@ export const useAIChat = () => {
         setConversation({
           id: data.id,
           messages: parsedMessages,
-          title: data.title,
+          title: data.title || undefined,
           updated_at: data.updated_at
         });
       }
