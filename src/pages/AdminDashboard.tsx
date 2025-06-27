@@ -1,20 +1,20 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, Bell, Calendar, Clock, LogOut, Settings, Bot, Sliders } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trash2, Edit, Plus, Download, Calendar, Clock, MessageSquare, Settings, FileText, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProjectForm } from '@/components/admin/ProjectForm';
 import { NotificationForm } from '@/components/admin/NotificationForm';
 import { SkillsManager } from '@/components/admin/SkillsManager';
+import { downloadProjectFiles } from '@/utils/projectDownloader';
 
 interface Project {
   id: string;
@@ -27,6 +27,7 @@ interface Project {
   is_featured: boolean;
   display_order: number;
   project_status: string;
+  created_at: string;
 }
 
 interface Notification {
@@ -42,7 +43,7 @@ interface AIInstruction {
   id: string;
   instruction_key: string;
   instruction_value: string;
-  description?: string;
+  description: string;
 }
 
 interface AdvancedSetting {
@@ -50,25 +51,21 @@ interface AdvancedSetting {
   setting_key: string;
   setting_value: string;
   setting_type: string;
-  description?: string;
-}
-
-interface SiteSettings {
-  show_terminal: boolean;
+  description: string;
 }
 
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [aiInstructions, setAiInstructions] = useState<AIInstruction[]>([]);
+  const [aiInstructions, setAIInstructions] = useState<AIInstruction[]>([]);
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [showProjectForm, setShowProjectForm] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showNotificationForm, setShowNotificationForm] = useState(false);
-  const navigate = useNavigate();
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [showTerminal, setShowTerminal] = useState(true);
   const { toast } = useToast();
 
-  // Project form state
+  // Project form states
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [technologies, setTechnologies] = useState('');
@@ -76,216 +73,141 @@ export default function AdminDashboard() {
   const [cssContent, setCssContent] = useState('');
   const [jsContent, setJsContent] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
-  const [displayOrder, setDisplayOrder] = useState(0);
-  const [projectStatus, setProjectStatus] = useState('active');
 
-  // Notification form state
-  const [notificationTitle, setNotificationTitle] = useState('');
-  const [notificationMessage, setNotificationMessage] = useState('');
-  const [notificationType, setNotificationType] = useState<'info' | 'success' | 'warning'>('info');
+  // Notification form states
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifType, setNotifType] = useState<'info' | 'success' | 'warning'>('info');
   const [expirationHours, setExpirationHours] = useState('24');
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    await Promise.all([
-      loadProjects(), 
-      loadNotifications(), 
-      loadSiteSettings(), 
-      loadAIInstructions(),
-      loadAdvancedSettings()
-    ]);
-  };
+    try {
+      // Load projects
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .order('display_order', { ascending: true });
 
-  const loadProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('display_order', { ascending: true });
+      if (projectsData) {
+        setProjects(projectsData);
+      }
 
-    if (error) {
-      console.error('Error loading projects:', error);
-    } else {
-      setProjects(data || []);
+      // Load notifications
+      const { data: notificationsData } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (notificationsData) {
+        const typedNotifications = notificationsData.map(notification => ({
+          ...notification,
+          type: notification.type as 'info' | 'success' | 'warning'
+        }));
+        setNotifications(typedNotifications);
+      }
+
+      // Load AI instructions
+      const { data: aiInstructionsData } = await supabase
+        .from('ai_instructions')
+        .select('*')
+        .order('instruction_key', { ascending: true });
+
+      if (aiInstructionsData) {
+        setAIInstructions(aiInstructionsData);
+      }
+
+      // Load advanced settings
+      const { data: advancedSettingsData } = await supabase
+        .from('advanced_settings')
+        .select('*')
+        .order('setting_key', { ascending: true });
+
+      if (advancedSettingsData) {
+        setAdvancedSettings(advancedSettingsData);
+      }
+
+      // Load site config
+      const { data: configData } = await supabase
+        .from('site_config')
+        .select('*')
+        .single();
+
+      if (configData) {
+        setShowTerminal(configData.show_terminal);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
   };
 
-  const loadNotifications = async () => {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading notifications:', error);
-    } else {
-      const typedNotifications = (data || []).map(notification => ({
-        ...notification,
-        type: notification.type as 'info' | 'success' | 'warning'
-      }));
-      setNotifications(typedNotifications);
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const loadSiteSettings = async () => {
-    const { data, error } = await supabase
-      .from('site_config')
-      .select('*')
-      .single();
+  const deleteProject = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا المشروع؟')) return;
 
-    if (error) {
-      console.error('Error loading site settings:', error);
-    } else if (data) {
-      setSiteSettings({ show_terminal: data.show_terminal });
-    }
-  };
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
 
-  const loadAIInstructions = async () => {
-    const { data, error } = await supabase
-      .from('ai_instructions')
-      .select('*')
-      .order('instruction_key', { ascending: true });
+      if (error) throw error;
 
-    if (error) {
-      console.error('Error loading AI instructions:', error);
-    } else {
-      setAiInstructions(data || []);
-    }
-  };
-
-  const loadAdvancedSettings = async () => {
-    const { data, error } = await supabase
-      .from('advanced_settings')
-      .select('*')
-      .order('setting_key', { ascending: true });
-
-    if (error) {
-      console.error('Error loading advanced settings:', error);
-    } else {
-      setAdvancedSettings(data || []);
-    }
-  };
-
-  const updateSiteSettings = async (newSettings: Partial<SiteSettings>) => {
-    const updatedSettings = { ...siteSettings, ...newSettings };
-    
-    const { error } = await supabase
-      .from('site_config')
-      .update(updatedSettings)
-      .eq('id', 1);
-
-    if (error) {
-      console.error('Error updating settings:', error);
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف المشروع بنجاح",
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error deleting project:', error);
       toast({
         title: "خطأ",
-        description: "فشل في تحديث الإعدادات",
+        description: "فشل في حذف المشروع",
         variant: "destructive",
-      });
-    } else {
-      setSiteSettings(updatedSettings);
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث إعدادات الموقع بنجاح",
       });
     }
   };
 
-  const updateAIInstruction = async (id: string, newValue: string) => {
-    const { error } = await supabase
-      .from('ai_instructions')
-      .update({ 
-        instruction_value: newValue,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
+  const deleteNotification = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا التحديث؟')) return;
 
-    if (error) {
-      console.error('Error updating AI instruction:', error);
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف التحديث بنجاح",
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
       toast({
         title: "خطأ",
-        description: "فشل في تحديث تعليمات الذكاء الاصطناعي",
+        description: "فشل في حذف التحديث",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث تعليمات الذكاء الاصطناعي بنجاح",
-      });
-      loadAIInstructions();
     }
   };
 
-  const updateAdvancedSetting = async (id: string, newValue: string) => {
-    const { error } = await supabase
-      .from('advanced_settings')
-      .update({ 
-        setting_value: newValue,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating advanced setting:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الإعدادات المتقدمة",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث الإعدادات المتقدمة بنجاح",
-      });
-      loadAdvancedSettings();
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/admin');
-  };
-
-  const resetProjectForm = () => {
-    setTitle('');
-    setDescription('');
-    setTechnologies('');
-    setHtmlContent('');
-    setCssContent('');
-    setJsContent('');
-    setIsFeatured(false);
-    setDisplayOrder(0);
-    setProjectStatus('active');
-    setEditingProject(null);
-    setShowProjectForm(false);
-  };
-
-  const handleProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!title.trim() || !description.trim() || !htmlContent.trim()) {
-      toast({
-        title: "خطأ",
-        description: "يرجى ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const projectData = {
-      title: title.trim(),
-      description: description.trim(),
-      technologies: technologies.split(',').map(tech => tech.trim()).filter(tech => tech),
-      html_content: htmlContent,
-      css_content: cssContent || null,
-      js_content: jsContent || null,
-      is_featured: isFeatured,
-      display_order: displayOrder || Math.floor(Date.now() / 1000),
-      project_status: projectStatus,
-    };
-
+  const handleProjectSubmit = async (projectData: any) => {
     try {
       if (editingProject) {
         const { error } = await supabase
@@ -302,7 +224,7 @@ export default function AdminDashboard() {
       } else {
         const { error } = await supabase
           .from('projects')
-          .insert([projectData]);
+          .insert([{ ...projectData, display_order: projects.length + 1 }]);
 
         if (error) throw error;
 
@@ -312,8 +234,9 @@ export default function AdminDashboard() {
         });
       }
 
-      resetProjectForm();
-      loadProjects();
+      setShowProjectForm(false);
+      setEditingProject(null);
+      loadData();
     } catch (error) {
       console.error('Error saving project:', error);
       toast({
@@ -324,84 +247,46 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleEditProject = (project: Project) => {
-    setEditingProject(project);
-    setTitle(project.title);
-    setDescription(project.description);
-    setTechnologies(project.technologies.join(', '));
-    setHtmlContent(project.html_content);
-    setCssContent(project.css_content || '');
-    setJsContent(project.js_content || '');
-    setIsFeatured(project.is_featured);
-    setDisplayOrder(project.display_order || 0);
-    setProjectStatus(project.project_status || 'active');
-    setShowProjectForm(true);
-  };
-
-  const handleDeleteProject = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم الحذف",
-        description: "تم حذف المشروع بنجاح",
-      });
-      loadProjects();
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حذف المشروع",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleNotificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!notificationTitle.trim() || !notificationMessage.trim()) {
+    if (!notifTitle.trim() || !notifMessage.trim()) {
       toast({
         title: "خطأ",
-        description: "يرجى ملء جميع حقول التحديث",
+        description: "يرجى ملء جميع الحقول المطلوبة",
         variant: "destructive",
       });
       return;
     }
 
-    const expirationDate = new Date();
-    expirationDate.setHours(expirationDate.getHours() + parseInt(expirationHours));
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + parseInt(expirationHours));
 
-    const newNotification = {
-      title: notificationTitle.trim(),
-      message: notificationMessage.trim(),
-      type: notificationType,
-      expires_at: expirationDate.toISOString(),
+    const notificationData = {
+      title: notifTitle.trim(),
+      message: notifMessage.trim(),
+      type: notifType,
+      expires_at: expiresAt.toISOString(),
     };
 
     try {
       const { error } = await supabase
         .from('notifications')
-        .insert([newNotification]);
+        .insert([notificationData]);
 
       if (error) throw error;
-
-      setNotificationTitle('');
-      setNotificationMessage('');
-      setNotificationType('info');
-      setExpirationHours('24');
-      setShowNotificationForm(false);
 
       toast({
         title: "تم النشر",
         description: "تم نشر التحديث بنجاح",
       });
-      loadNotifications();
+
+      setNotifTitle('');
+      setNotifMessage('');
+      setNotifType('info');
+      setExpirationHours('24');
+      setShowNotificationForm(false);
+      loadData();
     } catch (error) {
       console.error('Error creating notification:', error);
       toast({
@@ -412,360 +297,234 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteNotification = async (id: string) => {
+  const updateTerminalSetting = async (show: boolean) => {
     try {
       const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
+        .from('site_config')
+        .update({ show_terminal: show })
+        .eq('id', 1);
 
       if (error) throw error;
 
+      setShowTerminal(show);
       toast({
-        title: "تم الحذف",
-        description: "تم حذف التحديث بنجاح",
+        title: "تم التحديث",
+        description: "تم تحديث إعدادات الموقع",
       });
-      loadNotifications();
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      console.error('Error updating terminal setting:', error);
       toast({
         title: "خطأ",
-        description: "فشل في حذف التحديث",
+        description: "فشل في تحديث الإعدادات",
         variant: "destructive",
       });
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-bold">لوحة تحكم المدير</h1>
-          <div className="flex items-center space-x-2">
-            <ThemeToggle />
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              تسجيل الخروج
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">لوحة الإدارة</h1>
+        <div className="flex items-center space-x-2">
+          <Label htmlFor="terminal-toggle">إظهار Terminal</Label>
+          <Switch
+            id="terminal-toggle"
+            checked={showTerminal}
+            onCheckedChange={updateTerminalSetting}
+          />
+        </div>
+      </div>
+
+      <Tabs defaultValue="projects" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="projects">المشاريع</TabsTrigger>
+          <TabsTrigger value="notifications">التحديثات</TabsTrigger>
+          <TabsTrigger value="skills">المهارات</TabsTrigger>
+          <TabsTrigger value="ai">تعليمات AI</TabsTrigger>
+          <TabsTrigger value="settings">الإعدادات</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="projects" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">إدارة المشاريع</h2>
+            <Button onClick={() => setShowProjectForm(!showProjectForm)}>
+              <Plus className="h-4 w-4 mr-2" />
+              إضافة مشروع جديد
             </Button>
           </div>
-        </div>
-      </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="projects">إدارة المشاريع</TabsTrigger>
-            <TabsTrigger value="skills">إدارة المهارات</TabsTrigger>
-            <TabsTrigger value="notifications">التحديثات</TabsTrigger>
-            <TabsTrigger value="ai-settings">تعليمات الـ AI</TabsTrigger>
-            <TabsTrigger value="advanced-settings">الإعدادات المتقدمة</TabsTrigger>
-            <TabsTrigger value="site-settings">إعدادات الموقع</TabsTrigger>
-          </TabsList>
+          <ProjectForm
+            showForm={showProjectForm}
+            editingProject={editingProject}
+            onSubmit={handleProjectSubmit}
+            onCancel={() => {
+              setShowProjectForm(false);
+              setEditingProject(null);
+            }}
+          />
 
-          {/* Projects Tab */}
-          <TabsContent value="projects" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">المشاريع</h2>
-              <Button onClick={() => setShowProjectForm(!showProjectForm)}>
-                <Plus className="h-4 w-4 mr-2" />
-                إضافة مشروع جديد
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <Card key={project.id} className="overflow-hidden">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg line-clamp-1">{project.title}</CardTitle>
+                    {project.is_featured && (
+                      <Badge className="bg-yellow-500"><Star className="h-3 w-3" /></Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-1">
+                    {project.technologies.slice(0, 3).map((tech) => (
+                      <Badge key={tech} variant="outline" className="text-xs">{tech}</Badge>
+                    ))}
+                    {project.technologies.length > 3 && (
+                      <Badge variant="outline" className="text-xs">+{project.technologies.length - 3}</Badge>
+                    )}
+                  </div>
+                  
+                  <div className="text-xs text-muted-foreground">
+                    تاريخ الإنشاء: {formatDate(project.created_at)}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => downloadProjectFiles(project)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingProject(project);
+                      setShowProjectForm(true);
+                    }}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteProject(project.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
 
-            <ProjectForm
-              showForm={showProjectForm}
-              editingProject={editingProject}
-              title={title}
-              setTitle={setTitle}
-              description={description}
-              setDescription={setDescription}
-              technologies={technologies}
-              setTechnologies={setTechnologies}
-              htmlContent={htmlContent}
-              setHtmlContent={setHtmlContent}
-              cssContent={cssContent}
-              setCssContent={setCssContent}
-              jsContent={jsContent}
-              setJsContent={setJsContent}
-              isFeatured={isFeatured}
-              setIsFeatured={setIsFeatured}
-              displayOrder={displayOrder}
-              setDisplayOrder={setDisplayOrder}
-              projectStatus={projectStatus}
-              setProjectStatus={setProjectStatus}
-              onSubmit={handleProjectSubmit}
-              onCancel={resetProjectForm}
-            />
+        <TabsContent value="notifications" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">إدارة التحديثات</h2>
+            <Button onClick={() => setShowNotificationForm(!showNotificationForm)}>
+              <Plus className="h-4 w-4 mr-2" />
+              إضافة تحديث جديد
+            </Button>
+          </div>
 
-            {/* Projects List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <Card key={project.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{project.title}</CardTitle>
-                      <div className="flex gap-2">
-                        {project.is_featured && <Badge>مميز</Badge>}
-                        <Badge variant="outline">{project.project_status}</Badge>
-                      </div>
-                    </div>
-                    <CardDescription className="line-clamp-2">
-                      {project.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {project.technologies.slice(0, 3).map((tech) => (
-                        <Badge key={tech} variant="outline" className="text-xs">
-                          {tech}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => window.open(`/project/${project.id}`, '_blank')}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeleteProject(project.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
+          <NotificationForm
+            showForm={showNotificationForm}
+            title={notifTitle}
+            setTitle={setNotifTitle}
+            message={notifMessage}
+            setMessage={setNotifMessage}
+            type={notifType}
+            setType={setNotifType}
+            expirationHours={expirationHours}
+            setExpirationHours={setExpirationHours}
+            onSubmit={handleNotificationSubmit}
+            onCancel={() => {
+              setShowNotificationForm(false);
+              setNotifTitle('');
+              setNotifMessage('');
+              setNotifType('info');
+              setExpirationHours('24');
+            }}
+          />
 
-          {/* Skills Tab */}
-          <TabsContent value="skills">
-            <SkillsManager />
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">التحديثات</h2>
-              <Button onClick={() => setShowNotificationForm(!showNotificationForm)}>
-                <Bell className="h-4 w-4 mr-2" />
-                إضافة تحديث جديد
-              </Button>
-            </div>
-
-            <NotificationForm
-              showForm={showNotificationForm}
-              title={notificationTitle}
-              setTitle={setNotificationTitle}
-              message={notificationMessage}
-              setMessage={setNotificationMessage}
-              type={notificationType}
-              setType={setNotificationType}
-              expirationHours={expirationHours}
-              setExpirationHours={setExpirationHours}
-              onSubmit={handleNotificationSubmit}
-              onCancel={() => setShowNotificationForm(false)}
-            />
-
-            {/* Notifications List */}
-            <div className="space-y-4">
-              {notifications.map((notification) => (
-                <Card key={notification.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg">{notification.title}</CardTitle>
-                        <Badge variant={notification.type === 'success' ? 'default' : notification.type === 'warning' ? 'destructive' : 'secondary'}>
+          <div className="space-y-4">
+            {notifications.map((notification) => (
+              <Card key={notification.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold">{notification.title}</h3>
+                        <Badge 
+                          variant={
+                            notification.type === 'success' ? 'default' : 
+                            notification.type === 'warning' ? 'destructive' : 
+                            'secondary'
+                          }
+                        >
                           {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
                         </Badge>
                       </div>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeleteNotification(notification.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-muted p-3 rounded-lg mb-2">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                      <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap break-words">
                         {notification.message}
                       </p>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {new Date(notification.created_at).toLocaleDateString('en-GB')}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        ينتهي: {new Date(notification.expires_at).toLocaleDateString('en-GB')}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* AI Instructions Tab */}
-          <TabsContent value="ai-settings" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Bot className="h-6 w-6" />
-                تعليمات الذكاء الاصطناعي
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              {aiInstructions.map((instruction) => (
-                <Card key={instruction.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{instruction.instruction_key}</CardTitle>
-                    {instruction.description && (
-                      <CardDescription>{instruction.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <Textarea
-                        value={instruction.instruction_value}
-                        onChange={(e) => {
-                          const updatedInstructions = aiInstructions.map(inst =>
-                            inst.id === instruction.id 
-                              ? { ...inst, instruction_value: e.target.value }
-                              : inst
-                          );
-                          setAiInstructions(updatedInstructions);
-                        }}
-                        rows={instruction.instruction_key === 'system_prompt' ? 8 : 3}
-                        className="font-mono text-sm"
-                      />
-                      <Button 
-                        onClick={() => updateAIInstruction(instruction.id, instruction.instruction_value)}
-                        size="sm"
-                      >
-                        حفظ التعديلات
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Advanced Settings Tab */}
-          <TabsContent value="advanced-settings" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Sliders className="h-6 w-6" />
-                الإعدادات المتقدمة
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {advancedSettings.map((setting) => (
-                <Card key={setting.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{setting.setting_key}</CardTitle>
-                    {setting.description && (
-                      <CardDescription>{setting.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {setting.setting_type === 'boolean' ? (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={setting.id}
-                            checked={setting.setting_value === 'true'}
-                            onChange={(e) => {
-                              const newValue = e.target.checked ? 'true' : 'false';
-                              const updatedSettings = advancedSettings.map(s =>
-                                s.id === setting.id 
-                                  ? { ...s, setting_value: newValue }
-                                  : s
-                              );
-                              setAdvancedSettings(updatedSettings);
-                            }}
-                            className="rounded"
-                          />
-                          <Label htmlFor={setting.id}>تفعيل</Label>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          تاريخ النشر: {formatDate(notification.created_at)}
                         </div>
-                      ) : setting.setting_type === 'number' ? (
-                        <Input
-                          type="number"
-                          value={setting.setting_value}
-                          onChange={(e) => {
-                            const updatedSettings = advancedSettings.map(s =>
-                              s.id === setting.id 
-                                ? { ...s, setting_value: e.target.value }
-                                : s
-                            );
-                            setAdvancedSettings(updatedSettings);
-                          }}
-                        />
-                      ) : (
-                        <Input
-                          value={setting.setting_value}
-                          onChange={(e) => {
-                            const updatedSettings = advancedSettings.map(s =>
-                              s.id === setting.id 
-                                ? { ...s, setting_value: e.target.value }
-                                : s
-                            );
-                            setAdvancedSettings(updatedSettings);
-                          }}
-                        />
-                      )}
-                      <Button 
-                        onClick={() => updateAdvancedSetting(setting.id, setting.setting_value)}
-                        size="sm"
-                      >
-                        حفظ التعديلات
-                      </Button>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          ينتهي في: {formatDate(notification.expires_at)}
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Site Settings Tab */}
-          <TabsContent value="site-settings" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Settings className="h-6 w-6" />
-                إعدادات الموقع
-              </h2>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>إعدادات عامة</CardTitle>
-                <CardDescription>تحكم في إعدادات الموقع العامة</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="show-terminal">إظهار صفحة محرر الأكواد</Label>
-                    <p className="text-sm text-muted-foreground">
-                      تتيح للزوار تجربة الأكواد ومشاهدة النتائج مباشرة
-                    </p>
+                    <Button size="sm" variant="destructive" onClick={() => deleteNotification(notification.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <input
-                    type="checkbox"
-                    id="show-terminal"
-                    checked={siteSettings.show_terminal}
-                    onChange={(e) => updateSiteSettings({ show_terminal: e.target.checked })}
-                    className="rounded"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="skills">
+          <SkillsManager />
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-6">
+          <h2 className="text-2xl font-bold">تعليمات الذكاء الاصطناعي</h2>
+          <div className="space-y-4">
+            {aiInstructions.map((instruction) => (
+              <Card key={instruction.id}>
+                <CardHeader>
+                  <CardTitle className="text-lg">{instruction.instruction_key}</CardTitle>
+                  {instruction.description && (
+                    <p className="text-sm text-muted-foreground">{instruction.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm whitespace-pre-wrap">{instruction.instruction_value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <h2 className="text-2xl font-bold">الإعدادات المتقدمة</h2>
+          <div className="space-y-4">
+            {advancedSettings.map((setting) => (
+              <Card key={setting.id}>
+                <CardHeader>
+                  <CardTitle className="text-lg">{setting.setting_key}</CardTitle>
+                  {setting.description && (
+                    <p className="text-sm text-muted-foreground">{setting.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{setting.setting_type}</Badge>
+                    <span className="text-sm">{setting.setting_value}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

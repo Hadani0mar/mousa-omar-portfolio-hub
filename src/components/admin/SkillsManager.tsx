@@ -12,9 +12,10 @@ import { supabase } from '@/integrations/supabase/client';
 interface Skill {
   id: string;
   name: string;
-  level: number;
-  category: string;
+  display_order: number;
+  is_active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export const SkillsManager: React.FC = () => {
@@ -22,8 +23,7 @@ export const SkillsManager: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [name, setName] = useState('');
-  const [level, setLevel] = useState(50);
-  const [category, setCategory] = useState('');
+  const [displayOrder, setDisplayOrder] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -34,7 +34,8 @@ export const SkillsManager: React.FC = () => {
     const { data, error } = await supabase
       .from('skills')
       .select('*')
-      .order('category', { ascending: true });
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
 
     if (error) {
       console.error('Error loading skills:', error);
@@ -45,8 +46,7 @@ export const SkillsManager: React.FC = () => {
 
   const resetForm = () => {
     setName('');
-    setLevel(50);
-    setCategory('');
+    setDisplayOrder(0);
     setEditingSkill(null);
     setShowForm(false);
   };
@@ -54,10 +54,10 @@ export const SkillsManager: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !category.trim()) {
+    if (!name.trim()) {
       toast({
         title: "خطأ",
-        description: "يرجى ملء جميع الحقول المطلوبة",
+        description: "يرجى إدخال اسم المهارة",
         variant: "destructive",
       });
       return;
@@ -65,8 +65,8 @@ export const SkillsManager: React.FC = () => {
 
     const skillData = {
       name: name.trim(),
-      level,
-      category: category.trim(),
+      display_order: displayOrder || skills.length + 1,
+      is_active: true,
     };
 
     try {
@@ -110,16 +110,17 @@ export const SkillsManager: React.FC = () => {
   const handleEdit = (skill: Skill) => {
     setEditingSkill(skill);
     setName(skill.name);
-    setLevel(skill.level);
-    setCategory(skill.category);
+    setDisplayOrder(skill.display_order);
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه المهارة؟')) return;
+
     try {
       const { error } = await supabase
         .from('skills')
-        .delete()
+        .update({ is_active: false })
         .eq('id', id);
 
       if (error) throw error;
@@ -139,14 +140,6 @@ export const SkillsManager: React.FC = () => {
     }
   };
 
-  const skillsByCategory = skills.reduce((acc, skill) => {
-    if (!acc[skill.category]) {
-      acc[skill.category] = [];
-    }
-    acc[skill.category].push(skill);
-    return acc;
-  }, {} as Record<string, Skill[]>);
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -165,7 +158,7 @@ export const SkillsManager: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="skill-name">اسم المهارة *</Label>
                   <Input
@@ -176,25 +169,13 @@ export const SkillsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="skill-category">الفئة *</Label>
+                  <Label htmlFor="display-order">ترتيب العرض</Label>
                   <Input
-                    id="skill-category"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    placeholder="مثال: البرمجة، التصميم"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="skill-level">مستوى الإتقان ({level}%)</Label>
-                  <Input
-                    id="skill-level"
-                    type="range"
+                    id="display-order"
+                    type="number"
                     min="0"
-                    max="100"
-                    value={level}
-                    onChange={(e) => setLevel(parseInt(e.target.value))}
-                    className="mt-2"
+                    value={displayOrder}
+                    onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
                   />
                 </div>
               </div>
@@ -213,43 +194,31 @@ export const SkillsManager: React.FC = () => {
       )}
 
       {/* Skills List */}
-      <div className="space-y-6">
-        {Object.entries(skillsByCategory).map(([categoryName, categorySkills]) => (
-          <Card key={categoryName}>
-            <CardHeader>
-              <CardTitle className="text-lg">{categoryName}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categorySkills.map((skill) => (
-                  <div key={skill.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{skill.name}</span>
-                        <Badge variant="outline">{skill.level}%</Badge>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${skill.level}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-1 mr-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(skill)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(skill.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+      <Card>
+        <CardHeader>
+          <CardTitle>المهارات الحالية</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {skills.map((skill) => (
+              <div key={skill.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{skill.display_order}</Badge>
+                  <span className="font-medium">{skill.name}</span>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(skill)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDelete(skill.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

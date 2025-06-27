@@ -60,7 +60,8 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
-              className="resize-none"
+              className="resize-none min-h-[100px] break-words whitespace-pre-wrap"
+              style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}
               required
             />
           </div>

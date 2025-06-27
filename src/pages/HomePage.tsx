@@ -49,12 +49,20 @@ interface AdvancedSetting {
   setting_type: string;
 }
 
+interface Skill {
+  id: string;
+  name: string;
+  display_order: number;
+  is_active: boolean;
+}
+
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
@@ -108,6 +116,17 @@ export default function HomePage() {
       if (advancedSettingsData) {
         setAdvancedSettings(advancedSettingsData);
       }
+
+      // Load skills
+      const { data: skillsData } = await supabase
+        .from('skills')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (skillsData) {
+        setSkills(skillsData);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -136,10 +155,11 @@ export default function HomePage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    return date.toLocaleDateString('en-GB', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
   };
 
   const handleNotificationToggle = () => {
@@ -150,11 +170,6 @@ export default function HomePage() {
   };
 
   const unreadNotifications = notifications.filter(notif => !notif.read);
-
-  const skills = [
-    'Next.js', 'React.js', 'HTML', 'CSS', 'JavaScript', 'TypeScript',
-    'Tailwind CSS', 'Node.js', 'Git', 'Responsive Design'
-  ];
 
   if (loading) {
     return (
@@ -268,7 +283,9 @@ export default function HomePage() {
                             </Button>
                             <div className="pr-8">
                               <h4 className="font-medium text-sm mb-1 line-clamp-2">{notification.title}</h4>
-                              <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{notification.message}</p>
+                              <p className="text-sm text-muted-foreground mb-3 line-clamp-3 whitespace-pre-wrap break-words">
+                                {notification.message}
+                              </p>
                               <div className="flex items-center justify-between text-xs">
                                 <Badge 
                                   variant={
@@ -338,13 +355,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Enhanced Skills Section with Schema */}
+        {/* Enhanced Skills Section with dynamic data */}
         <section className="space-y-6">
           <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
           <div className="flex flex-wrap justify-center gap-3">
             {skills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="text-sm px-3 py-1 hover:bg-accent transition-colors">
-                {skill}
+              <Badge key={skill.id} variant="secondary" className="text-sm px-3 py-1 hover:bg-accent transition-colors">
+                {skill.name}
               </Badge>
             ))}
           </div>
@@ -355,7 +372,7 @@ export default function HomePage() {
               "@context": "https://schema.org",
               "@type": "Person",
               "name": "موسى عمر",
-              "knowsAbout": skills
+              "knowsAbout": skills.map(skill => skill.name)
             })}
           </script>
         </section>
