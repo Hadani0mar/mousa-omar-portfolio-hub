@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Download, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { supabase } from '@/integrations/supabase/client';
+import { useProjectInteractions } from '@/hooks/useProjectInteractions';
+import { downloadProjectFiles } from '@/utils/projectDownloader';
 
 interface Project {
   id: string;
@@ -23,6 +25,7 @@ export default function ProjectView() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const { stats, handleDownload, handleLike } = useProjectInteractions(id || '');
 
   useEffect(() => {
     if (id) {
@@ -61,7 +64,6 @@ export default function ProjectView() {
   const createSandboxHTML = (project: Project) => {
     let htmlContent = project.html_content;
 
-    // If CSS content exists, inject it into the HTML
     if (project.css_content) {
       const cssTag = `<style>${project.css_content}</style>`;
       if (htmlContent.includes('</head>')) {
@@ -71,7 +73,6 @@ export default function ProjectView() {
       }
     }
 
-    // If JS content exists, inject it into the HTML
     if (project.js_content) {
       const jsTag = `<script>${project.js_content}</script>`;
       if (htmlContent.includes('</body>')) {
@@ -82,6 +83,13 @@ export default function ProjectView() {
     }
 
     return htmlContent;
+  };
+
+  const handleDownloadClick = async () => {
+    if (project) {
+      await handleDownload();
+      downloadProjectFiles(project);
+    }
   };
 
   if (loading) {
@@ -146,14 +154,48 @@ export default function ProjectView() {
               ))}
             </div>
 
-            {/* Action Button */}
-            <div className="flex flex-wrap gap-4">
-              <Button variant="outline" asChild>
-                <a href={createWhatsAppLink(`مرحباً موسى، أود طلب مشروع مثل: ${project.title}`)}>
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  طلب مشروع مشابه
-                </a>
-              </Button>
+            {/* Stats and Actions */}
+            <div className="flex flex-wrap gap-4 items-center">
+              {/* Stats */}
+              {stats && (
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Download className="h-4 w-4" />
+                    <span>{stats.download_count} تنزيل</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className={`h-4 w-4 ${stats.user_liked ? 'fill-red-500 text-red-500' : ''}`} />
+                    <span>{stats.like_count} إعجاب</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleLike}
+                  disabled={stats?.user_liked}
+                  className={`${stats?.user_liked ? 'bg-red-50 border-red-300' : 'hover:bg-red-50 hover:border-red-300'}`}
+                >
+                  <Heart className={`h-4 w-4 mr-2 ${stats?.user_liked ? 'fill-red-500 text-red-500' : ''}`} />
+                  {stats?.user_liked ? 'تم الإعجاب' : 'إعجاب'}
+                </Button>
+
+                {stats?.download_enabled && (
+                  <Button variant="outline" onClick={handleDownloadClick}>
+                    <Download className="h-4 w-4 mr-2" />
+                    تنزيل المشروع
+                  </Button>
+                )}
+
+                <Button variant="outline" asChild>
+                  <a href={createWhatsAppLink(`مرحباً موسى، أود طلب مشروع مثل: ${project.title}`)}>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    طلب مشروع مشابه
+                  </a>
+                </Button>
+              </div>
             </div>
           </div>
 

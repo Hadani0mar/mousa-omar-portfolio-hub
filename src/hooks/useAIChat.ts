@@ -46,10 +46,15 @@ export const useAIChat = () => {
       }
 
       if (data) {
-        // Parse messages from Json to ChatMessage[]
-        const parsedMessages = Array.isArray(data.messages) 
-          ? data.messages as ChatMessage[]
-          : [];
+        // Parse messages safely with proper type casting
+        let parsedMessages: ChatMessage[] = [];
+        if (data.messages && Array.isArray(data.messages)) {
+          parsedMessages = (data.messages as unknown[]).map((msg: any) => ({
+            role: msg.role || 'user',
+            content: msg.content || '',
+            timestamp: msg.timestamp || new Date().toISOString()
+          }));
+        }
         
         setConversation({
           id: data.id,

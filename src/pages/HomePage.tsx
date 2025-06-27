@@ -1,14 +1,13 @@
-
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, ExternalLink, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
+import { Facebook, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SEO } from '@/components/SEO';
 import { AIAssistant } from '@/components/AIAssistant';
 import { ProjectSlider } from '@/components/ProjectSlider';
+import { ProjectCard } from '@/components/ProjectCard';
 import { supabase } from '@/integrations/supabase/client';
 
 // Lazy load Analytics for better performance
@@ -63,70 +62,42 @@ export default function HomePage() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false for faster initial load
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   useEffect(() => {
+    // Load data without showing loading state for better UX
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      // Load projects
-      const { data: projectsData } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('project_status', 'active')
-        .order('display_order', { ascending: true });
+      setLoading(true);
+      
+      // Load all data in parallel for better performance
+      const [projectsRes, notificationsRes, settingsRes, advancedSettingsRes, skillsRes] = await Promise.all([
+        supabase.from('projects').select('*').eq('project_status', 'active').order('display_order', { ascending: true }),
+        supabase.from('notifications').select('*').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }),
+        supabase.from('site_config').select('*').single(),
+        supabase.from('advanced_settings').select('*'),
+        supabase.from('skills').select('*').eq('is_active', true).order('display_order', { ascending: true })
+      ]);
 
-      if (projectsData) {
-        setProjects(projectsData);
-      }
-
-      // Load active notifications
-      const { data: notificationsData } = await supabase
-        .from('notifications')
-        .select('*')
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
-
-      if (notificationsData) {
-        const typedNotifications = notificationsData.map(notification => ({
+      // Process results
+      if (projectsRes.data) setProjects(projectsRes.data);
+      
+      if (notificationsRes.data) {
+        const typedNotifications = notificationsRes.data.map(notification => ({
           ...notification,
           type: notification.type as 'info' | 'success' | 'warning'
         }));
         setNotifications(typedNotifications);
       }
-
-      // Load site settings
-      const { data: settingsData } = await supabase
-        .from('site_config')
-        .select('*')
-        .single();
-
-      if (settingsData) {
-        setSiteSettings({ show_terminal: settingsData.show_terminal });
-      }
-
-      // Load advanced settings
-      const { data: advancedSettingsData } = await supabase
-        .from('advanced_settings')
-        .select('*');
-
-      if (advancedSettingsData) {
-        setAdvancedSettings(advancedSettingsData);
-      }
-
-      // Load skills
-      const { data: skillsData } = await supabase
-        .from('skills')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      if (skillsData) {
-        setSkills(skillsData);
-      }
+      
+      if (settingsRes.data) setSiteSettings({ show_terminal: settingsRes.data.show_terminal });
+      if (advancedSettingsRes.data) setAdvancedSettings(advancedSettingsRes.data);
+      if (skillsRes.data) setSkills(skillsRes.data);
+      
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -171,13 +142,28 @@ export default function HomePage() {
 
   const unreadNotifications = notifications.filter(notif => !notif.read);
 
-  if (loading) {
+  // Show simple loading only for data fetching, not blocking entire UI
+  if (loading && projects.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background">
         <SEO />
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">جاري تحميل المحتوى...</p>
+        {/* Header */}
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-bold text-blue-600 cursor-pointer">
+                موسى عمر
+              </h1>
+            </div>
+            <ThemeToggle />
+          </div>
+        </header>
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-sm text-muted-foreground">جاري التحميل...</p>
+          </div>
         </div>
       </div>
     );
@@ -222,7 +208,7 @@ export default function HomePage() {
               </Button>
             )}
             
-            {/* Enhanced Notification Bell with better responsiveness */}
+            {/* Enhanced Notification Bell */}
             <div className="relative">
               <Button
                 variant="ghost"
@@ -242,13 +228,11 @@ export default function HomePage() {
               {/* Enhanced Responsive Notifications Dropdown */}
               {showNotifications && (
                 <>
-                  {/* Backdrop for mobile */}
                   <div 
                     className="fixed inset-0 bg-black/20 z-40 md:hidden"
                     onClick={() => setShowNotifications(false)}
                   />
                   
-                  {/* Notifications panel */}
                   <div className="absolute right-0 top-12 w-screen max-w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto md:max-h-96 transform transition-all duration-200 animate-in slide-in-from-top-2">
                     <div className="p-4 border-b bg-card rounded-t-lg">
                       <div className="flex items-center justify-between">
@@ -355,7 +339,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Enhanced Skills Section with dynamic data */}
+        {/* Enhanced Skills Section */}
         <section className="space-y-6">
           <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
           <div className="flex flex-wrap justify-center gap-3">
@@ -365,16 +349,6 @@ export default function HomePage() {
               </Badge>
             ))}
           </div>
-          
-          {/* Structured Data for Skills */}
-          <script type="application/ld+json">
-            {JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Person",
-              "name": "موسى عمر",
-              "knowsAbout": skills.map(skill => skill.name)
-            })}
-          </script>
         </section>
 
         {/* Projects Section */}
@@ -398,46 +372,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {displayProjects.map((project) => (
-                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{project.title}</CardTitle>
-                      {project.is_featured && (
-                        <Badge variant="default">مميز</Badge>
-                      )}
-                    </div>
-                    <CardDescription className="line-clamp-3">
-                      {project.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {project.technologies.slice(0, 3).map((tech) => (
-                        <Badge key={tech} variant="outline" className="text-xs">
-                          {tech}
-                        </Badge>
-                      ))}
-                      {project.technologies.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{project.technologies.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button asChild size="sm" className="flex-1">
-                        <Link to={`/project/${project.id}`}>
-                          عرض مباشر
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={createWhatsAppLink(`مرحباً موسى، أود طلب مشروع مثل: ${project.title}`)}>
-                          <MessageCircle className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ProjectCard key={project.id} project={project} />
               ))}
             </div>
           )}
@@ -464,7 +399,7 @@ export default function HomePage() {
         onToggle={() => setShowAIAssistant(!showAIAssistant)} 
       />
 
-      {/* Lazy load Analytics for better performance */}
+      {/* Lazy load Analytics */}
       <Suspense fallback={null}>
         <Analytics />
       </Suspense>
