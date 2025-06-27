@@ -186,7 +186,7 @@ export default function HomePage() {
       <SEO 
         title="موسى عمر - مطور مواقع ليبي | أفضل خدمات تطوير المواقع في ليبيا"
         description="مطور مواقع ليبي محترف متخصص في React, Next.js, TypeScript. أقدم خدمات تطوير مواقع احترافية وحديثة في ليبيا. تواصل معي لتطوير موقعك الإلكتروني."
-        keywords="مطور مواقع ليبيا, تطوير مواقع احترافية, React Developer Libya, Next.js Libya,Bn0marDev مطور ويب ليبي, برمجة مواقع ليبيا, موسى عمر"
+        keywords="مطور مواقع ليبيا, تطوير مواقع احترافية, React Developer Libya, Next.js Libya Sabha,Bn0marDev مطور ويب ليبي, برمجة مواقع ليبيا, موسى عمر"
         url="https://www.m0usa.ly/"
       />
       
