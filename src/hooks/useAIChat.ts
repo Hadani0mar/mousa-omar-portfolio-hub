@@ -46,7 +46,17 @@ export const useAIChat = () => {
       }
 
       if (data) {
-        setConversation(data);
+        // Parse messages from Json to ChatMessage[]
+        const parsedMessages = Array.isArray(data.messages) 
+          ? data.messages as ChatMessage[]
+          : [];
+        
+        setConversation({
+          id: data.id,
+          messages: parsedMessages,
+          title: data.title,
+          updated_at: data.updated_at
+        });
       }
     } catch (err) {
       console.error('Error in loadConversation:', err);

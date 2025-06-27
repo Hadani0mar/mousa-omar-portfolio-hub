@@ -1,20 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Edit, Plus, Download, Calendar, Clock, MessageSquare, Settings, FileText, Star } from 'lucide-react';
+import { Trash2, Edit, Plus, Download, Calendar, Clock, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectForm } from '@/components/admin/ProjectForm';
 import { NotificationForm } from '@/components/admin/NotificationForm';
 import { SkillsManager } from '@/components/admin/SkillsManager';
 import { downloadProjectFiles } from '@/utils/projectDownloader';
+import { Label } from '@/components/ui/label';
 
 interface Project {
   id: string;
@@ -73,6 +70,8 @@ export default function AdminDashboard() {
   const [cssContent, setCssContent] = useState('');
   const [jsContent, setJsContent] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
+  const [displayOrder, setDisplayOrder] = useState(0);
+  const [projectStatus, setProjectStatus] = useState('active');
 
   // Notification form states
   const [notifTitle, setNotifTitle] = useState('');
@@ -155,6 +154,96 @@ export default function AdminDashboard() {
     });
   };
 
+  const resetProjectForm = () => {
+    setTitle('');
+    setDescription('');
+    setTechnologies('');
+    setHtmlContent('');
+    setCssContent('');
+    setJsContent('');
+    setIsFeatured(false);
+    setDisplayOrder(0);
+    setProjectStatus('active');
+    setEditingProject(null);
+    setShowProjectForm(false);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setTitle(project.title);
+    setDescription(project.description);
+    setTechnologies(project.technologies.join(', '));
+    setHtmlContent(project.html_content);
+    setCssContent(project.css_content || '');
+    setJsContent(project.js_content || '');
+    setIsFeatured(project.is_featured);
+    setDisplayOrder(project.display_order);
+    setProjectStatus(project.project_status);
+    setShowProjectForm(true);
+  };
+
+  const handleProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!title.trim() || !description.trim() || !htmlContent.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى ملء جميع الحقول المطلوبة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const projectData = {
+      title: title.trim(),
+      description: description.trim(),
+      technologies: technologies.split(',').map(tech => tech.trim()).filter(tech => tech),
+      html_content: htmlContent.trim(),
+      css_content: cssContent.trim() || null,
+      js_content: jsContent.trim() || null,
+      is_featured: isFeatured,
+      display_order: displayOrder || projects.length + 1,
+      project_status: projectStatus,
+    };
+
+    try {
+      if (editingProject) {
+        const { error } = await supabase
+          .from('projects')
+          .update(projectData)
+          .eq('id', editingProject.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "تم التحديث",
+          description: "تم تحديث المشروع بنجاح",
+        });
+      } else {
+        const { error } = await supabase
+          .from('projects')
+          .insert([projectData]);
+
+        if (error) throw error;
+
+        toast({
+          title: "تم الإنشاء",
+          description: "تم إنشاء المشروع بنجاح",
+        });
+      }
+
+      resetProjectForm();
+      loadData();
+    } catch (error) {
+      console.error('Error saving project:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حفظ المشروع",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteProject = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المشروع؟')) return;
 
@@ -202,46 +291,6 @@ export default function AdminDashboard() {
       toast({
         title: "خطأ",
         description: "فشل في حذف التحديث",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleProjectSubmit = async (projectData: any) => {
-    try {
-      if (editingProject) {
-        const { error } = await supabase
-          .from('projects')
-          .update(projectData)
-          .eq('id', editingProject.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "تم التحديث",
-          description: "تم تحديث المشروع بنجاح",
-        });
-      } else {
-        const { error } = await supabase
-          .from('projects')
-          .insert([{ ...projectData, display_order: projects.length + 1 }]);
-
-        if (error) throw error;
-
-        toast({
-          title: "تم الإنشاء",
-          description: "تم إنشاء المشروع بنجاح",
-        });
-      }
-
-      setShowProjectForm(false);
-      setEditingProject(null);
-      loadData();
-    } catch (error) {
-      console.error('Error saving project:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حفظ المشروع",
         variant: "destructive",
       });
     }
@@ -356,11 +405,26 @@ export default function AdminDashboard() {
           <ProjectForm
             showForm={showProjectForm}
             editingProject={editingProject}
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            technologies={technologies}
+            setTechnologies={setTechnologies}
+            htmlContent={htmlContent}
+            setHtmlContent={setHtmlContent}
+            cssContent={cssContent}
+            setCssContent={setCssContent}
+            jsContent={jsContent}
+            setJsContent={setJsContent}
+            isFeatured={isFeatured}
+            setIsFeatured={setIsFeatured}
+            displayOrder={displayOrder}
+            setDisplayOrder={setDisplayOrder}
+            projectStatus={projectStatus}
+            setProjectStatus={setProjectStatus}
             onSubmit={handleProjectSubmit}
-            onCancel={() => {
-              setShowProjectForm(false);
-              setEditingProject(null);
-            }}
+            onCancel={resetProjectForm}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -393,10 +457,7 @@ export default function AdminDashboard() {
                     <Button size="sm" variant="outline" onClick={() => downloadProjectFiles(project)}>
                       <Download className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      setEditingProject(project);
-                      setShowProjectForm(true);
-                    }}>
+                    <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => deleteProject(project.id)}>
