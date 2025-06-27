@@ -171,7 +171,7 @@ export default function HomePage() {
 
   // Get dynamic settings
   const heroTitle = getAdvancedSetting('hero_title', 'مرحباً، أنا موسى عمر');
-  const heroSubtitle = getAdvancedSetting('hero_subtitle', 'مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية');
+  const heroSubtitle = getAdvancedSetting('hero_subtitle', '  مطور مواقع ليبي متخصص  في تطوير واجهات المستخدم الحديثة والتفاعلية وانشاء مشاريع التخرج التقنية باحدث اطر العمل والاساليب');
   const projectsPerSlide = parseInt(getAdvancedSetting('projects_per_slide', '3'));
   const autoSlideInterval = parseInt(getAdvancedSetting('auto_slide_interval', '5000'));
   const showProjectSlider = getAdvancedSetting('show_project_slider', 'true') === 'true';
@@ -186,7 +186,7 @@ export default function HomePage() {
       <SEO 
         title="موسى عمر - مطور مواقع ليبي | أفضل خدمات تطوير المواقع في ليبيا"
         description="مطور مواقع ليبي محترف متخصص في React, Next.js, TypeScript. أقدم خدمات تطوير مواقع احترافية وحديثة في ليبيا. تواصل معي لتطوير موقعك الإلكتروني."
-        keywords="مطور مواقع ليبيا, تطوير مواقع احترافية, React Developer Libya, Next.js Libya, مطور ويب ليبي, برمجة مواقع ليبيا, موسى عمر"
+        keywords="مطور مواقع ليبيا, تطوير مواقع احترافية, React Developer Libya, Next.js Libya,Bn0marDev مطور ويب ليبي, برمجة مواقع ليبيا, موسى عمر"
         url="https://www.m0usa.ly/"
       />
       
@@ -195,7 +195,7 @@ export default function HomePage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold text-blue-600 cursor-pointer">
-              موسى عمر
+              موسى عمر 
             </h1>
           </div>
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
@@ -358,7 +358,7 @@ export default function HomePage() {
               {showProjectSlider ? 'جميع المشاريع' : 'المشاريع المميزة'}
             </h2>
             <p className="text-muted-foreground">
-              مجموعة من أحدث أعمالي في تطوير المواقع والتطبيقات
+              مجموعة من مشاريع تخرج او قوالب من اعمالي متاحة للتنزيل مجانا
             </p>
           </div>
 
