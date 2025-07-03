@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Edit, Plus, Download, Calendar, Clock, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -370,6 +371,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateAdvancedSetting = async (id: string, newValue: string) => {
+    try {
+      const { error } = await supabase
+        .from('advanced_settings')
+        .update({ setting_value: newValue, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث الإعدادات المتقدمة",
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error updating advanced setting:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث الإعدادات المتقدمة",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -566,7 +591,7 @@ export default function AdminDashboard() {
 
         <TabsContent value="settings" className="space-y-6">
           <h2 className="text-2xl font-bold">الإعدادات المتقدمة</h2>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {advancedSettings.map((setting) => (
               <Card key={setting.id}>
                 <CardHeader>
@@ -576,9 +601,39 @@ export default function AdminDashboard() {
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{setting.setting_type}</Badge>
-                    <span className="text-sm">{setting.setting_value}</span>
+                  <div className="space-y-4">
+                    {setting.setting_type === 'boolean' ? (
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={setting.id}
+                          checked={setting.setting_value === 'true'}
+                          onChange={(e) => {
+                            const newValue = e.target.checked ? 'true' : 'false';
+                            const updated = advancedSettings.map(s =>
+                              s.id === setting.id ? { ...s, setting_value: newValue } : s
+                            );
+                            setAdvancedSettings(updated);
+                          }}
+                          className="rounded"
+                        />
+                        <Label htmlFor={setting.id}>تفعيل</Label>
+                      </div>
+                    ) : (
+                      <Input
+                        type={setting.setting_type === 'number' ? 'number' : 'text'}
+                        value={setting.setting_value}
+                        onChange={(e) => {
+                          const updated = advancedSettings.map(s =>
+                            s.id === setting.id ? { ...s, setting_value: e.target.value } : s
+                          );
+                          setAdvancedSettings(updated);
+                        }}
+                      />
+                    )}
+                    <Button onClick={() => updateAdvancedSetting(setting.id, setting.setting_value)} size="sm">
+                      حفظ التعديلات
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
