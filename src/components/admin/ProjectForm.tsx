@@ -71,6 +71,21 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
 }) => {
   if (!showForm) return null;
 
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (value: string) => void,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === 'string') {
+        setter(event.target.result);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -130,6 +145,12 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
               placeholder="<!DOCTYPE html>..."
               required
             />
+            <Input
+              type="file"
+              accept=".html"
+              onChange={(e) => handleFileChange(e, setHtmlContent)}
+              className="mt-2"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -143,6 +164,12 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 className="font-mono text-sm"
                 placeholder="body { ... }"
               />
+              <Input
+                type="file"
+                accept=".css"
+                onChange={(e) => handleFileChange(e, setCssContent)}
+                className="mt-2"
+              />
             </div>
             <div>
               <Label htmlFor="js">كود JavaScript (اختياري)</Label>
@@ -153,6 +180,12 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 rows={6}
                 className="font-mono text-sm"
                 placeholder="console.log('Hello');"
+              />
+              <Input
+                type="file"
+                accept=".js"
+                onChange={(e) => handleFileChange(e, setJsContent)}
+                className="mt-2"
               />
             </div>
           </div>
