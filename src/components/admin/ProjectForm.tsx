@@ -1,9 +1,16 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import React from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ProjectFormProps {
   showForm: boolean;
@@ -64,7 +71,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      if (typeof event.target?.result === 'string') {
+      if (typeof event.target?.result === "string") {
         setter(event.target.result);
       }
     };
@@ -74,14 +81,19 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{editingProject ? 'تعديل المشروع' : 'إضافة مشروع جديد'}</CardTitle>
+        <CardTitle>{editingProject ? "تعديل المشروع" : "إضافة مشروع جديد"}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="title">اسم المشروع *</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
             </div>
             <div>
               <Label htmlFor="technologies">التقنيات المستخدمة (مفصولة بفاصلة)</Label>
@@ -185,6 +197,15 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="submit">
+              {editingProject ? "تحديث المشروع" : "نشر المشروع"}
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              إلغاء
+            </Button>
           </div>
         </form>
       </CardContent>
