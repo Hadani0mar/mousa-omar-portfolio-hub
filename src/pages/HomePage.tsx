@@ -1,18 +1,13 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
-import { Facebook, Phone, MapPin, Bell, X, MessageCircle, Terminal } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ProjectCard } from '@/components/ProjectCard';
+import { SEO } from '@/components/SEO';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { SEO } from '@/components/SEO';
-import { AIAssistant } from '@/components/AIAssistant';
-import { ProjectCard } from '@/components/ProjectCard';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowDown, Github, Linkedin, Mail, Phone, Code, Globe, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-
-// Lazy load Analytics for better performance
-const Analytics = lazy(() => 
-  import('@vercel/analytics/react').then(module => ({ default: module.Analytics }))
-);
+import NotificationsPopup from '@/components/NotificationsPopup';
+import WebsiteShowcase from '@/components/WebsiteShowcase';
 
 interface Project {
   id: string;
@@ -25,45 +20,21 @@ interface Project {
   is_featured: boolean;
   display_order: number;
   project_status: string;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning';
-  expires_at: string;
   created_at: string;
-  read?: boolean;
-}
-
-interface SiteSettings {
-  show_terminal: boolean;
-}
-
-interface AdvancedSetting {
-  setting_key: string;
-  setting_value: string;
-  setting_type: string;
+  download_count?: number;
+  like_count?: number;
 }
 
 interface Skill {
   id: string;
   name: string;
-  display_order: number;
-  is_active: boolean;
+  created_at: string;
 }
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
-  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -71,35 +42,26 @@ export default function HomePage() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
-      
-      // Load all data in parallel for better performance
-      const [projectsRes, notificationsRes, settingsRes, advancedSettingsRes, skillsRes] = await Promise.all([
-        supabase.from('projects').select('*').eq('project_status', 'active').order('display_order', { ascending: true }),
-        supabase.from('notifications').select('*').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }),
-        supabase.from('site_config').select('*').single(),
-        supabase.from('advanced_settings').select('*'),
-        supabase.from('skills').select('*').eq('is_active', true).order('display_order', { ascending: true })
-      ]);
+      // Load projects
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('project_status', 'active')
+        .order('display_order', { ascending: true });
 
-      // Process results
-      if (projectsRes.data) {
-        setProjects(projectsRes.data);
-        setAllProjects(projectsRes.data);
+      if (projectsData) {
+        setProjects(projectsData);
       }
-      
-      if (notificationsRes.data) {
-        const typedNotifications = notificationsRes.data.map(notification => ({
-          ...notification,
-          type: notification.type as 'info' | 'success' | 'warning'
-        }));
-        setNotifications(typedNotifications);
+
+      // Load skills
+      const { data: skillsData } = await supabase
+        .from('skills')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (skillsData) {
+        setSkills(skillsData);
       }
-      
-      if (settingsRes.data) setSiteSettings({ show_terminal: settingsRes.data.show_terminal });
-      if (advancedSettingsRes.data) setAdvancedSettings(advancedSettingsRes.data);
-      if (skillsRes.data) setSkills(skillsRes.data);
-      
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -107,294 +69,192 @@ export default function HomePage() {
     }
   };
 
-  const getAdvancedSetting = (key: string, defaultValue: string = '') => {
-    const setting = advancedSettings.find(s => s.setting_key === key);
-    return setting ? setting.setting_value : defaultValue;
-  };
+  const handleProjectInteraction = async (projectId: string, type: 'download' | 'like') => {
+    try {
+      const { error } = await supabase.rpc(
+        type === 'download' ? 'increment_download_count' : 'increment_like_count',
+        { row_id: projectId }
+      );
 
-  const markNotificationsAsRead = () => {
-    setNotifications(notifications.map(notif => ({ ...notif, read: true })));
-  };
-
-  const dismissNotification = (id: string) => {
-    setNotifications(notifications.filter(notif => notif.id !== id));
-  };
-
-  const createWhatsAppLink = (message: string) => {
-    const phoneNumber = "+218931303032";
-    const encodedMessage = encodeURIComponent(message);
-    return `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodedMessage}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-  };
-
-  const handleNotificationToggle = () => {
-    if (!showNotifications) {
-      markNotificationsAsRead();
+      if (error) {
+        console.error(`Error incrementing ${type} count:`, error);
+      } else {
+        // Optimistically update the project in the state
+        setProjects(prevProjects =>
+          prevProjects.map(project =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  download_count: (project.download_count || 0) + (type === 'download' ? 1 : 0),
+                  like_count: (project.like_count || 0) + (type === 'like' ? 1 : 0),
+                }
+              : project
+          )
+        );
+      }
+    } catch (error) {
+      console.error(`Error incrementing ${type} count:`, error);
     }
-    setShowNotifications(!showNotifications);
   };
-
-  const unreadNotifications = notifications.filter(notif => !notif.read);
-
-  if (loading && projects.length === 0) {
-    return (
-      <div className="min-h-screen bg-background animate-fade-in">
-        <SEO />
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold text-blue-600 cursor-pointer">
-                موسى عمر
-              </h1>
-            </div>
-            <ThemeToggle />
-          </div>
-        </header>
-        
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-sm text-muted-foreground">جاري التحميل...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Get dynamic settings
-  const heroTitle = getAdvancedSetting('hero_title', 'مرحباً، أنا موسى عمر');
-  const heroSubtitle = getAdvancedSetting('hero_subtitle', 'مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية وإنشاء مشاريع التخرج التقنية بأحدث إطار العمل والأساليب');
 
   return (
-    <div className="min-h-screen bg-background">
-      <SEO 
-        title="موسى عمر - مطور مواقع ليبي | إنشاء مشاريع تخرج الويب HTML CSS JS Next.js خبير n8n"
-        description="موسى عمر مطور مواقع ليبي محترف متخصص في إنشاء مشاريع تخرج الويب باستخدام HTML, CSS, JavaScript, React, Next.js. خبير في n8n وأتمتة المهام. أقدم خدمات تطوير الويب الاحترافية وإنشاء مشاريع التخرج التقنية في ليبيا مع أحدث التقنيات والأدوات"
-        keywords="موسى عمر, مطور مواقع ليبي, إنشاء مشاريع تخرج الويب, HTML CSS JS, Next.js, خبير n8n, React Developer Libya, تطوير واجهات المستخدم, مشاريع تخرج تقنية, برمجة مواقع ليبيا, أتمتة المهام, تطوير تطبيقات الويب, موسى عمر ليبيا, web developer libya, graduation projects, frontend development libya, TypeScript, Tailwind CSS, Node.js, database design, UI/UX, responsive design, mobile development, e-commerce websites, portfolio websites, business websites, SEO optimization, web performance, modern web technologies, full stack developer, API integration, CMS development, WordPress developer, Shopify developer, digital solutions libya, tech consultant libya, freelance developer libya, libya programmer, سبها ليبيا, تطوير مواقع سبها, مبرمج ليبي, استشارات تقنية ليبيا, حلول رقمية ليبيا, تصميم مواقع احترافية, برمجة تطبيقات, تطوير متاجر إلكترونية, تحسين محركات البحث, أداء المواقع, التقنيات الحديثة, مطور فول ستاك, تكامل APIs, إدارة المحتوى, WordPress, Shopify, حلول رقمية"
-        url="https://www.m0usa.ly/"
-      />
-      
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-blue-600 cursor-pointer animate-fade-in">
-              موسى عمر 
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            {/* Terminal Link */}
-            {siteSettings.show_terminal && (
-              <Button variant="ghost" size="icon" asChild className="hover-scale">
-                <Link to="/terminal">
-                  <Terminal className="h-5 w-5" />
-                </Link>
-              </Button>
-            )}
-            
-            {/* Enhanced Notification Bell */}
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNotificationToggle}
-                className="relative transition-all duration-200 hover:scale-105 active:scale-95"
-                aria-label="عرض الإشعارات"
-              >
-                <Bell className="h-5 w-5" />
-                {unreadNotifications.length > 0 && !showNotifications && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center animate-pulse min-w-[16px]">
-                    {unreadNotifications.length > 9 ? '9+' : unreadNotifications.length}
-                  </span>
-                )}
-              </Button>
+    <>
+      <SEO />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900">
+        {/* Header with Notifications */}
+        <header className="fixed top-0 right-0 z-50 p-4">
+          <NotificationsPopup />
+        </header>
 
-              {/* Enhanced Responsive Notifications Dropdown */}
-              {showNotifications && (
-                <>
-                  <div 
-                    className="fixed inset-0 bg-black/20 z-40 md:hidden animate-fade-in"
-                    onClick={() => setShowNotifications(false)}
-                  />
-                  
-                  <div className="absolute right-0 top-12 w-screen max-w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto md:max-h-96 animate-scale-in">
-                    <div className="p-4 border-b bg-card rounded-t-lg">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg">التحديثات</h3>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowNotifications(false)}
-                          className="h-8 w-8 p-0 hover:bg-accent/50 hover-scale"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-muted-foreground">
-                        <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>لا توجد تحديثات جديدة</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-1 p-2">
-                        {notifications.map((notification) => (
-                          <div key={notification.id} className="p-3 border rounded-lg relative bg-card hover:bg-accent/30 transition-all duration-200 group animate-fade-in">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover-scale"
-                              onClick={() => dismissNotification(notification.id)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                            <div className="pr-8">
-                              <h4 className="font-medium text-sm mb-1 line-clamp-2">{notification.title}</h4>
-                              <p className="text-sm text-muted-foreground mb-3 line-clamp-3 whitespace-pre-wrap break-words">
-                                {notification.message}
-                              </p>
-                              <div className="flex items-center justify-between text-xs">
-                                <Badge 
-                                  variant={
-                                    notification.type === 'success' ? 'default' : 
-                                    notification.type === 'warning' ? 'destructive' : 
-                                    'secondary'
-                                  } 
-                                  className="text-xs px-2 py-0.5"
-                                >
-                                  {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
-                                </Badge>
-                                <span className="text-muted-foreground">{formatDate(notification.created_at)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 space-y-16">
         {/* Hero Section */}
-        <section className="text-center space-y-6 py-12 animate-fade-in">
-          <div className="space-y-4">
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              {heroTitle.split(' ').map((word, index) => (
-                <span key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
-                  {word === 'موسى' || word === 'عمر' ? (
-                    <span className="text-blue-600">{word}</span>
-                  ) : (
-                    word
-                  )}
-                  {index < heroTitle.split(' ').length - 1 ? ' ' : ''}
-                </span>
-              ))}
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              {heroSubtitle}
-            </p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.5s' }}>
-            <Button asChild size="lg" className="hover-scale">
-              <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
-                <MessageCircle className="h-5 w-5 mr-2" />
-                بدء محادثة
-              </a>
-            </Button>
-            <Button variant="outline" size="lg" asChild className="hover-scale">
-              <a href="https://www.facebook.com/mousa.0mar" target="_blank" rel="noopener noreferrer">
-                <Facebook className="h-5 w-5 mr-2" />
-                Facebook
-              </a>
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 text-muted-foreground animate-fade-in" style={{ animationDelay: '0.7s' }}>
-            <MapPin className="h-4 w-4" />
-            <span>ليبيا</span>
-          </div>
-        </section>
-
-        {/* Enhanced Skills Section */}
-        <section className="space-y-6 animate-fade-in">
-          <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
-          <div className="flex flex-wrap justify-center gap-3">
-            {skills.map((skill, index) => (
-              <Badge 
-                key={skill.id} 
-                variant="secondary" 
-                className="text-sm px-3 py-1 hover:bg-accent transition-colors hover-scale animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {skill.name}
+        <section className="relative min-h-screen flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+          <div className="text-center space-y-8 max-w-4xl mx-auto relative z-10">
+            <div className="space-y-4 animate-fade-in">
+              <Badge variant="secondary" className="px-4 py-2 text-sm font-medium">
+                <Sparkles className="h-4 w-4 mr-2" />
+                مطور ويب محترف
               </Badge>
-            ))}
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                مرحباً، أنا موسى عمر
+              </h1>
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية باستخدام أحدث التقنيات
+              </p>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-4 animate-fade-in">
+              <Badge variant="outline" className="px-3 py-1">HTML5</Badge>
+              <Badge variant="outline" className="px-3 py-1">CSS3</Badge>
+              <Badge variant="outline" className="px-3 py-1">JavaScript</Badge>
+              <Badge variant="outline" className="px-3 py-1">React</Badge>
+              <Badge variant="outline" className="px-3 py-1">Next.js</Badge>
+              <Badge variant="outline" className="px-3 py-1">TypeScript</Badge>
+              <Badge variant="outline" className="px-3 py-1">Tailwind CSS</Badge>
+              <Badge variant="outline" className="px-3 py-1">n8n</Badge>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
+              <Button size="lg" className="px-8 py-3 text-lg hover-scale">
+                <Code className="h-5 w-5 mr-2" />
+                استعرض أعمالي
+              </Button>
+              <Button size="lg" variant="outline" className="px-8 py-3 text-lg hover-scale">
+                <Phone className="h-5 w-5 mr-2" />
+                تواصل معي
+              </Button>
+            </div>
+
+            <div className="animate-bounce mt-12">
+              <ArrowDown className="h-8 w-8 mx-auto text-muted-foreground" />
+            </div>
           </div>
         </section>
 
-        {/* Projects Section - Show all projects without slider */}
-        <section className="space-y-6 animate-fade-in">
-          <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">جميع المشاريع</h2>
-            <p className="text-muted-foreground">
-              مجموعة من مشاريع التخرج وقوالب من أعمالي متاحة للتنزيل مجاناً
-            </p>
-          </div>
+        {/* Projects Section */}
+        <section className="py-20 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">مشاريعي</h2>
+              <p className="text-xl text-muted-foreground">
+                مجموعة مختارة من أفضل أعمالي في تطوير الويب
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allProjects.map((project, index) => (
-              <div 
-                key={project.id} 
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <ProjectCard project={project} />
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-6">
+                      <div className="h-4 bg-muted rounded mb-4"></div>
+                      <div className="h-3 bg-muted rounded mb-2"></div>
+                      <div className="h-3 bg-muted rounded mb-4"></div>
+                      <div className="flex gap-2">
+                        <div className="h-6 w-16 bg-muted rounded"></div>
+                        <div className="h-6 w-20 bg-muted rounded"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {projects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onInteraction={handleProjectInteraction}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Website Showcase Section */}
+        <section className="py-20 px-4 bg-muted/30">
+          <div className="max-w-7xl mx-auto">
+            <WebsiteShowcase />
+          </div>
+        </section>
+
+        {/* Skills Section */}
+        <section className="py-20 px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold mb-8">مهاراتي التقنية</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {skills.map((skill) => (
+                <Card key={skill.id} className="p-6 hover:shadow-lg transition-all duration-300 hover-scale">
+                  <CardContent className="p-0 text-center">
+                    <Code className="h-8 w-8 mx-auto mb-3 text-primary" />
+                    <h3 className="font-semibold">{skill.name}</h3>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* Contact Section */}
-        <section className="text-center space-y-6 py-12 animate-fade-in">
-          <h2 className="text-3xl font-bold">هل لديك مشروع؟</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            أحب العمل على المشاريع المثيرة والتحديات التقنية الجديدة. 
-            تواصل معي ولنناقش كيف يمكنني مساعدتك في تحقيق أهدافك.
-          </p>
-          <Button asChild size="lg" className="hover-scale">
-            <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
-              بدء محادثة
-            </a>
-          </Button>
+        <section className="py-20 px-4 bg-muted/30">
+          <div className="max-w-2xl mx-auto text-center space-y-8">
+            <h2 className="text-3xl md:text-4xl font-bold">تواصل معي</h2>
+            <p className="text-xl text-muted-foreground">
+              هل لديك مشروع في ذهنك؟ دعنا نتحدث ونحول فكرتك إلى واقع
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" className="hover-scale">
+                <Mail className="h-5 w-5 mr-2" />
+                البريد الإلكتروني
+              </Button>
+              <Button size="lg" variant="outline" className="hover-scale">
+                <Phone className="h-5 w-5 mr-2" />
+                الهاتف
+              </Button>
+            </div>
+
+            <div className="flex justify-center gap-6 pt-8">
+              <Button variant="ghost" size="icon" className="hover-scale">
+                <Github className="h-6 w-6" />
+              </Button>
+              <Button variant="ghost" size="icon" className="hover-scale">
+                <Linkedin className="h-6 w-6" />
+              </Button>
+              <Button variant="ghost" size="icon" className="hover-scale">
+                <Globe className="h-6 w-6" />
+              </Button>
+            </div>
+          </div>
         </section>
-      </main>
 
-      {/* AI Assistant */}
-      <AIAssistant 
-        isOpen={showAIAssistant} 
-        onToggle={() => setShowAIAssistant(!showAIAssistant)} 
-      />
-
-      {/* Lazy load Analytics */}
-      <Suspense fallback={null}>
-        <Analytics />
-      </Suspense>
-    </div>
+        {/* Footer */}
+        <footer className="py-8 px-4 border-t">
+          <div className="max-w-4xl mx-auto text-center text-muted-foreground">
+            <p>&copy; 2024 موسى عمر. جميع الحقوق محفوظة.</p>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }

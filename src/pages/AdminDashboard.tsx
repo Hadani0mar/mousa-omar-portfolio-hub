@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, Edit, Plus, Download, Calendar, Clock, Star, Upload, Globe, Eye } from 'lucide-react';
+import { Trash2, Edit, Plus, Download, Calendar, Clock, Star, Upload, Globe, Eye, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectForm } from '@/components/admin/ProjectForm';
@@ -14,6 +14,8 @@ import { NotificationForm } from '@/components/admin/NotificationForm';
 import { SkillsManager } from '@/components/admin/SkillsManager';
 import { downloadProjectFiles } from '@/utils/projectDownloader';
 import { Label } from '@/components/ui/label';
+import WebsiteShowcase from '@/components/WebsiteShowcase';
+import NotificationsPopup from '@/components/NotificationsPopup';
 
 interface Project {
   id: string;
@@ -55,17 +57,6 @@ interface AdvancedSetting {
   description: string;
 }
 
-interface WebsitePreview {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  screenshot_url?: string;
-  is_active: boolean;
-  display_order: number;
-  created_at: string;
-}
-
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -76,28 +67,9 @@ export default function AdminDashboard() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showTerminal, setShowTerminal] = useState(true);
   const { toast } = useToast();
-  const [websitePreviews, setWebsitePreviews] = useState<WebsitePreview[]>([]);
-  const [showWebsiteForm, setShowWebsiteForm] = useState(false);
-  const [websiteTitle, setWebsiteTitle] = useState('');
-  const [websiteDescription, setWebsiteDescription] = useState('');
-  const [websiteUrl, setWebsiteUrl] = useState('');
-
-  // Project form states
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [technologies, setTechnologies] = useState('');
-  const [htmlContent, setHtmlContent] = useState('');
-  const [cssContent, setCssContent] = useState('');
-  const [jsContent, setJsContent] = useState('');
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [displayOrder, setDisplayOrder] = useState(0);
-  const [projectStatus, setProjectStatus] = useState('active');
-
-  // Notification form states
-  const [notifTitle, setNotifTitle] = useState('');
-  const [notifMessage, setNotifMessage] = useState('');
-  const [notifType, setNotifType] = useState<'info' | 'success' | 'warning'>('info');
-  const [expirationHours, setExpirationHours] = useState('24');
+  const [editingAIInstruction, setEditingAIInstruction] = useState<string | null>(null);
+  const [editingAdvancedSetting, setEditingAdvancedSetting] = useState<string | null>(null);
+  const [tempValues, setTempValues] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadData();
@@ -158,18 +130,60 @@ export default function AdminDashboard() {
       if (configData) {
         setShowTerminal(configData.show_terminal);
       }
-
-      // Load website previews
-      const { data: websitePreviewsData } = await supabase
-        .from('website_previews')
-        .select('*')
-        .order('display_order', { ascending: true });
-
-      if (websitePreviewsData) {
-        setWebsitePreviews(websitePreviewsData);
-      }
     } catch (error) {
       console.error('Error loading data:', error);
+    }
+  };
+
+  const updateAIInstruction = async (id: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('ai_instructions')
+        .update({ instruction_value: value })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث تعليمة الذكاء الاصطناعي بنجاح",
+      });
+
+      setEditingAIInstruction(null);
+      loadData();
+    } catch (error) {
+      console.error('Error updating AI instruction:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث التعليمة",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateAdvancedSetting = async (id: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('advanced_settings')
+        .update({ setting_value: value })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث الإعداد بنجاح",
+      });
+
+      setEditingAdvancedSetting(null);
+      loadData();
+    } catch (error) {
+      console.error('Error updating advanced setting:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث الإعداد",
+        variant: "destructive",
+      });
     }
   };
 
@@ -185,93 +199,13 @@ export default function AdminDashboard() {
   };
 
   const resetProjectForm = () => {
-    setTitle('');
-    setDescription('');
-    setTechnologies('');
-    setHtmlContent('');
-    setCssContent('');
-    setJsContent('');
-    setIsFeatured(false);
-    setDisplayOrder(0);
-    setProjectStatus('active');
     setEditingProject(null);
     setShowProjectForm(false);
   };
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
-    setTitle(project.title);
-    setDescription(project.description);
-    setTechnologies(project.technologies.join(', '));
-    setHtmlContent(project.html_content);
-    setCssContent(project.css_content || '');
-    setJsContent(project.js_content || '');
-    setIsFeatured(project.is_featured);
-    setDisplayOrder(project.display_order);
-    setProjectStatus(project.project_status);
     setShowProjectForm(true);
-  };
-
-  const handleProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!title.trim() || !description.trim() || !htmlContent.trim()) {
-      toast({
-        title: "خطأ",
-        description: "يرجى ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const projectData = {
-      title: title.trim(),
-      description: description.trim(),
-      technologies: technologies.split(',').map(tech => tech.trim()).filter(tech => tech),
-      html_content: htmlContent.trim(),
-      css_content: cssContent.trim() || null,
-      js_content: jsContent.trim() || null,
-      is_featured: isFeatured,
-      display_order: displayOrder || projects.length + 1,
-      project_status: projectStatus,
-    };
-
-    try {
-      if (editingProject) {
-        const { error } = await supabase
-          .from('projects')
-          .update(projectData)
-          .eq('id', editingProject.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "تم التحديث",
-          description: "تم تحديث المشروع بنجاح",
-        });
-      } else {
-        const { error } = await supabase
-          .from('projects')
-          .insert([projectData]);
-
-        if (error) throw error;
-
-        toast({
-          title: "تم الإنشاء",
-          description: "تم إنشاء المشروع بنجاح",
-        });
-      }
-
-      resetProjectForm();
-      loadData();
-    } catch (error) {
-      console.error('Error saving project:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حفظ المشروع",
-        variant: "destructive",
-      });
-    }
   };
 
   const deleteProject = async (id: string) => {
@@ -295,176 +229,6 @@ export default function AdminDashboard() {
       toast({
         title: "خطأ",
         description: "فشل في حذف المشروع",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const deleteNotification = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا التحديث؟')) return;
-
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم الحذف",
-        description: "تم حذف التحديث بنجاح",
-      });
-      loadData();
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حذف التحديث",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleNotificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!notifTitle.trim() || !notifMessage.trim()) {
-      toast({
-        title: "خطأ",
-        description: "يرجى ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + parseInt(expirationHours));
-
-    const notificationData = {
-      title: notifTitle.trim(),
-      message: notifMessage.trim(),
-      type: notifType,
-      expires_at: expiresAt.toISOString(),
-    };
-
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert([notificationData]);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم النشر",
-        description: "تم نشر التحديث بنجاح",
-      });
-
-      setNotifTitle('');
-      setNotifMessage('');
-      setNotifType('info');
-      setExpirationHours('24');
-      setShowNotificationForm(false);
-      loadData();
-    } catch (error) {
-      console.error('Error creating notification:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في نشر التحديث",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const updateTerminalSetting = async (show: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('site_config')
-        .update({ show_terminal: show })
-        .eq('id', 1);
-
-      if (error) throw error;
-
-      setShowTerminal(show);
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث إعدادات الموقع",
-      });
-    } catch (error) {
-      console.error('Error updating terminal setting:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الإعدادات",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleWebsiteSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!websiteTitle.trim() || !websiteDescription.trim() || !websiteUrl.trim()) {
-      toast({
-        title: "خطأ",
-        description: "يرجى ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('website_previews')
-        .insert([{
-          title: websiteTitle.trim(),
-          description: websiteDescription.trim(),
-          url: websiteUrl.trim(),
-          display_order: websitePreviews.length + 1,
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم الإنشاء",
-        description: "تم إضافة الموقع بنجاح",
-      });
-
-      setWebsiteTitle('');
-      setWebsiteDescription('');
-      setWebsiteUrl('');
-      setShowWebsiteForm(false);
-      loadData();
-    } catch (error) {
-      console.error('Error creating website preview:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في إضافة الموقع",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const deleteWebsitePreview = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الموقع؟')) return;
-
-    try {
-      const { error } = await supabase
-        .from('website_previews')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم الحذف",
-        description: "تم حذف الموقع بنجاح",
-      });
-      loadData();
-    } catch (error) {
-      console.error('Error deleting website preview:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حذف الموقع",
         variant: "destructive",
       });
     }
@@ -506,25 +270,6 @@ export default function AdminDashboard() {
           <ProjectForm
             showForm={showProjectForm}
             editingProject={!!editingProject}
-            title={title}
-            setTitle={setTitle}
-            description={description}
-            setDescription={setDescription}
-            technologies={technologies}
-            setTechnologies={setTechnologies}
-            htmlContent={htmlContent}
-            setHtmlContent={setHtmlContent}
-            cssContent={cssContent}
-            setCssContent={setCssContent}
-            jsContent={jsContent}
-            setJsContent={setJsContent}
-            isFeatured={isFeatured}
-            setIsFeatured={setIsFeatured}
-            displayOrder={displayOrder}
-            setDisplayOrder={setDisplayOrder}
-            projectStatus={projectStatus}
-            setProjectStatus={setProjectStatus}
-            onSubmit={handleProjectSubmit}
             onCancel={resetProjectForm}
           />
 
@@ -588,22 +333,7 @@ export default function AdminDashboard() {
 
           <NotificationForm
             showForm={showNotificationForm}
-            title={notifTitle}
-            setTitle={setNotifTitle}
-            message={notifMessage}
-            setMessage={setNotifMessage}
-            type={notifType}
-            setType={setNotifType}
-            expirationHours={expirationHours}
-            setExpirationHours={setExpirationHours}
-            onSubmit={handleNotificationSubmit}
-            onCancel={() => {
-              setShowNotificationForm(false);
-              setNotifTitle('');
-              setNotifMessage('');
-              setNotifType('info');
-              setExpirationHours('24');
-            }}
+            onCancel={() => setShowNotificationForm(false)}
           />
 
           <div className="space-y-4">
@@ -657,82 +387,8 @@ export default function AdminDashboard() {
             </Button>
           </div>
 
-          {showWebsiteForm && (
-            <Card className="animate-scale-in">
-              <CardHeader>
-                <CardTitle>إضافة موقع جديد</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleWebsiteSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="website-title">عنوان الموقع *</Label>
-                    <Input
-                      id="website-title"
-                      value={websiteTitle}
-                      onChange={(e) => setWebsiteTitle(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="website-description">وصف الموقع *</Label>
-                    <Textarea
-                      id="website-description"
-                      value={websiteDescription}
-                      onChange={(e) => setWebsiteDescription(e.target.value)}
-                      rows={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="website-url">رابط الموقع *</Label>
-                    <Input
-                      id="website-url"
-                      type="url"
-                      value={websiteUrl}
-                      onChange={(e) => setWebsiteUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      required
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit">إضافة الموقع</Button>
-                    <Button type="button" variant="outline" onClick={() => setShowWebsiteForm(false)}>
-                      إلغاء
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+          <WebsiteShowcase />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {websitePreviews.map((website) => (
-              <Card key={website.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg line-clamp-1 flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    {website.title}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{website.description}</p>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-xs text-muted-foreground">
-                    الرابط: <a href={website.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{website.url}</a>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" asChild className="hover-scale">
-                      <a href={website.url} target="_blank" rel="noopener noreferrer">
-                        <Eye className="h-4 w-4" />
-                      </a>
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteWebsitePreview(website.id)} className="hover-scale">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </TabsContent>
 
         <TabsContent value="skills">
@@ -745,13 +401,79 @@ export default function AdminDashboard() {
             {aiInstructions.map((instruction) => (
               <Card key={instruction.id}>
                 <CardHeader>
-                  <CardTitle className="text-lg">{instruction.instruction_key}</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{instruction.instruction_key}</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (editingAIInstruction === instruction.id) {
+                          updateAIInstruction(instruction.id, tempValues[instruction.id] || instruction.instruction_value);
+                        } else {
+                          setEditingAIInstruction(instruction.id);
+                          setTempValues(prev => ({
+                            ...prev,
+                            [instruction.id]: instruction.instruction_value
+                          }));
+                        }
+                      }}
+                    >
+                      {editingAIInstruction === instruction.id ? (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          حفظ
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-4 w-4 mr-2" />
+                          تعديل
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   {instruction.description && (
                     <p className="text-sm text-muted-foreground">{instruction.description}</p>
                   )}
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm whitespace-pre-wrap">{instruction.instruction_value}</p>
+                  {editingAIInstruction === instruction.id ? (
+                    <div className="space-y-3">
+                      <Textarea
+                        value={tempValues[instruction.id] || instruction.instruction_value}
+                        onChange={(e) => setTempValues(prev => ({
+                          ...prev,
+                          [instruction.id]: e.target.value
+                        }))}
+                        rows={6}
+                        className="resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => updateAIInstruction(instruction.id, tempValues[instruction.id] || instruction.instruction_value)}
+                        >
+                          حفظ التغييرات
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingAIInstruction(null);
+                            setTempValues(prev => {
+                              const { [instruction.id]: _, ...rest } = prev;
+                              return rest;
+                            });
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap break-words">
+                      {instruction.instruction_value}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -764,16 +486,101 @@ export default function AdminDashboard() {
             {advancedSettings.map((setting) => (
               <Card key={setting.id}>
                 <CardHeader>
-                  <CardTitle className="text-lg">{setting.setting_key}</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{setting.setting_key}</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (editingAdvancedSetting === setting.id) {
+                          updateAdvancedSetting(setting.id, tempValues[setting.id] || setting.setting_value);
+                        } else {
+                          setEditingAdvancedSetting(setting.id);
+                          setTempValues(prev => ({
+                            ...prev,
+                            [setting.id]: setting.setting_value
+                          }));
+                        }
+                      }}
+                    >
+                      {editingAdvancedSetting === setting.id ? (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          حفظ
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-4 w-4 mr-2" />
+                          تعديل
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   {setting.description && (
                     <p className="text-sm text-muted-foreground">{setting.description}</p>
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{setting.setting_type}</Badge>
-                    <span className="text-sm">{setting.setting_value}</span>
-                  </div>
+                  {editingAdvancedSetting === setting.id ? (
+                    <div className="space-y-3">
+                      {setting.setting_type === 'boolean' ? (
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={tempValues[setting.id] === 'true'}
+                            onCheckedChange={(checked) => setTempValues(prev => ({
+                              ...prev,
+                              [setting.id]: checked.toString()
+                            }))}
+                          />
+                          <Label>تفعيل/إلغاء تفعيل</Label>
+                        </div>
+                      ) : setting.setting_type === 'number' ? (
+                        <Input
+                          type="number"
+                          value={tempValues[setting.id] || setting.setting_value}
+                          onChange={(e) => setTempValues(prev => ({
+                            ...prev,
+                            [setting.id]: e.target.value
+                          }))}
+                        />
+                      ) : (
+                        <Textarea
+                          value={tempValues[setting.id] || setting.setting_value}
+                          onChange={(e) => setTempValues(prev => ({
+                            ...prev,
+                            [setting.id]: e.target.value
+                          }))}
+                          rows={3}
+                        />
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => updateAdvancedSetting(setting.id, tempValues[setting.id] || setting.setting_value)}
+                        >
+                          حفظ التغييرات
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingAdvancedSetting(null);
+                            setTempValues(prev => {
+                              const { [setting.id]: _, ...rest } = prev;
+                              return rest;
+                            });
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{setting.setting_type}</Badge>
+                      <span className="text-sm">{setting.setting_value}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
