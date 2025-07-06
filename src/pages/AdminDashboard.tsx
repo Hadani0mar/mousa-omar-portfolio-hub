@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Edit, Plus, Download, Calendar, Clock, Star } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Trash2, Edit, Plus, Download, Calendar, Clock, Star, Upload, Globe, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectForm } from '@/components/admin/ProjectForm';
@@ -25,6 +27,8 @@ interface Project {
   display_order: number;
   project_status: string;
   created_at: string;
+  download_count?: number;
+  like_count?: number;
 }
 
 interface Notification {
@@ -51,6 +55,17 @@ interface AdvancedSetting {
   description: string;
 }
 
+interface WebsitePreview {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  screenshot_url?: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+}
+
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -61,6 +76,11 @@ export default function AdminDashboard() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showTerminal, setShowTerminal] = useState(true);
   const { toast } = useToast();
+  const [websitePreviews, setWebsitePreviews] = useState<WebsitePreview[]>([]);
+  const [showWebsiteForm, setShowWebsiteForm] = useState(false);
+  const [websiteTitle, setWebsiteTitle] = useState('');
+  const [websiteDescription, setWebsiteDescription] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
 
   // Project form states
   const [title, setTitle] = useState('');
@@ -137,6 +157,16 @@ export default function AdminDashboard() {
 
       if (configData) {
         setShowTerminal(configData.show_terminal);
+      }
+
+      // Load website previews
+      const { data: websitePreviewsData } = await supabase
+        .from('website_previews')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (websitePreviewsData) {
+        setWebsitePreviews(websitePreviewsData);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -370,8 +400,78 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleWebsiteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!websiteTitle.trim() || !websiteDescription.trim() || !websiteUrl.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى ملء جميع الحقول المطلوبة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('website_previews')
+        .insert([{
+          title: websiteTitle.trim(),
+          description: websiteDescription.trim(),
+          url: websiteUrl.trim(),
+          display_order: websitePreviews.length + 1,
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الإنشاء",
+        description: "تم إضافة الموقع بنجاح",
+      });
+
+      setWebsiteTitle('');
+      setWebsiteDescription('');
+      setWebsiteUrl('');
+      setShowWebsiteForm(false);
+      loadData();
+    } catch (error) {
+      console.error('Error creating website preview:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في إضافة الموقع",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteWebsitePreview = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الموقع؟')) return;
+
+    try {
+      const { error } = await supabase
+        .from('website_previews')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الموقع بنجاح",
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error deleting website preview:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف الموقع",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">لوحة الإدارة</h1>
         <div className="flex items-center space-x-2">
@@ -385,9 +485,10 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="projects" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="projects">المشاريع</TabsTrigger>
           <TabsTrigger value="notifications">التحديثات</TabsTrigger>
+          <TabsTrigger value="websites">المواقع</TabsTrigger>
           <TabsTrigger value="skills">المهارات</TabsTrigger>
           <TabsTrigger value="ai">تعليمات AI</TabsTrigger>
           <TabsTrigger value="settings">الإعدادات</TabsTrigger>
@@ -396,7 +497,7 @@ export default function AdminDashboard() {
         <TabsContent value="projects" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">إدارة المشاريع</h2>
-            <Button onClick={() => setShowProjectForm(!showProjectForm)}>
+            <Button onClick={() => setShowProjectForm(!showProjectForm)} className="hover-scale">
               <Plus className="h-4 w-4 mr-2" />
               إضافة مشروع جديد
             </Button>
@@ -404,7 +505,7 @@ export default function AdminDashboard() {
 
           <ProjectForm
             showForm={showProjectForm}
-            editingProject={editingProject}
+            editingProject={!!editingProject}
             title={title}
             setTitle={setTitle}
             description={description}
@@ -429,7 +530,7 @@ export default function AdminDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
-              <Card key={project.id} className="overflow-hidden">
+              <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg line-clamp-1">{project.title}</CardTitle>
@@ -450,17 +551,23 @@ export default function AdminDashboard() {
                   </div>
                   
                   <div className="text-xs text-muted-foreground">
-                    تاريخ الإنشاء: {formatDate(project.created_at)}
+                    <div className="flex items-center gap-4">
+                      <span>التنزيلات: {project.download_count || 0}</span>
+                      <span>الإعجابات: {project.like_count || 0}</span>
+                    </div>
+                    <div className="mt-1">
+                      تاريخ الإنشاء: {formatDate(project.created_at)}
+                    </div>
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => downloadProjectFiles(project)}>
+                    <Button size="sm" variant="outline" onClick={() => downloadProjectFiles(project)} className="hover-scale">
                       <Download className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
+                    <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="hover-scale">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteProject(project.id)}>
+                    <Button size="sm" variant="destructive" onClick={() => deleteProject(project.id)} className="hover-scale">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -473,7 +580,7 @@ export default function AdminDashboard() {
         <TabsContent value="notifications" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">إدارة التحديثات</h2>
-            <Button onClick={() => setShowNotificationForm(!showNotificationForm)}>
+            <Button onClick={() => setShowNotificationForm(!showNotificationForm)} className="hover-scale">
               <Plus className="h-4 w-4 mr-2" />
               إضافة تحديث جديد
             </Button>
@@ -532,6 +639,93 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <Button size="sm" variant="destructive" onClick={() => deleteNotification(notification.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="websites" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">إدارة المواقع</h2>
+            <Button onClick={() => setShowWebsiteForm(!showWebsiteForm)} className="hover-scale">
+              <Plus className="h-4 w-4 mr-2" />
+              إضافة موقع جديد
+            </Button>
+          </div>
+
+          {showWebsiteForm && (
+            <Card className="animate-scale-in">
+              <CardHeader>
+                <CardTitle>إضافة موقع جديد</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleWebsiteSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="website-title">عنوان الموقع *</Label>
+                    <Input
+                      id="website-title"
+                      value={websiteTitle}
+                      onChange={(e) => setWebsiteTitle(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="website-description">وصف الموقع *</Label>
+                    <Textarea
+                      id="website-description"
+                      value={websiteDescription}
+                      onChange={(e) => setWebsiteDescription(e.target.value)}
+                      rows={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="website-url">رابط الموقع *</Label>
+                    <Input
+                      id="website-url"
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit">إضافة الموقع</Button>
+                    <Button type="button" variant="outline" onClick={() => setShowWebsiteForm(false)}>
+                      إلغاء
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {websitePreviews.map((website) => (
+              <Card key={website.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg line-clamp-1 flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    {website.title}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{website.description}</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-xs text-muted-foreground">
+                    الرابط: <a href={website.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{website.url}</a>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" asChild className="hover-scale">
+                      <a href={website.url} target="_blank" rel="noopener noreferrer">
+                        <Eye className="h-4 w-4" />
+                      </a>
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteWebsitePreview(website.id)} className="hover-scale">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

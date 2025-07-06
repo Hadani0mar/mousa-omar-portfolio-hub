@@ -1,9 +1,11 @@
-import React from "react";
+
+import React, { useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -61,14 +63,19 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  const htmlFileRef = useRef<HTMLInputElement>(null);
+  const cssFileRef = useRef<HTMLInputElement>(null);
+  const jsFileRef = useRef<HTMLInputElement>(null);
+
   if (!showForm) return null;
 
-  const handleFileChange = (
+  const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (value: string) => void
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     const reader = new FileReader();
     reader.onload = (event) => {
       if (typeof event.target?.result === "string") {
@@ -79,13 +86,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="animate-scale-in">
       <CardHeader>
         <CardTitle>{editingProject ? "تعديل المشروع" : "إضافة مشروع جديد"}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="title">اسم المشروع *</Label>
               <Input
@@ -93,6 +100,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+                className="transition-all duration-200 focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -102,6 +110,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 value={technologies}
                 onChange={(e) => setTechnologies(e.target.value)}
                 placeholder="HTML, CSS, JavaScript"
+                className="transition-all duration-200 focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -114,62 +123,108 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               required
+              className="transition-all duration-200 focus:ring-2 focus:ring-primary"
             />
           </div>
 
           <div>
             <Label htmlFor="html">كود HTML *</Label>
-            <Textarea
-              id="html"
-              value={htmlContent}
-              onChange={(e) => setHtmlContent(e.target.value)}
-              rows={6}
-              className="font-mono text-sm"
-              placeholder="<!DOCTYPE html>..."
-              required
-            />
-            <Input
-              type="file"
-              accept=".html"
-              onChange={(e) => handleFileChange(e, setHtmlContent)}
-              className="mt-2"
-            />
+            <div className="space-y-2">
+              <Textarea
+                id="html"
+                value={htmlContent}
+                onChange={(e) => setHtmlContent(e.target.value)}
+                rows={6}
+                className="font-mono text-sm transition-all duration-200 focus:ring-2 focus:ring-primary"
+                placeholder="<!DOCTYPE html>..."
+                required
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => htmlFileRef.current?.click()}
+                  className="hover-scale"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  رفع ملف HTML
+                </Button>
+                <input
+                  type="file"
+                  accept=".html"
+                  ref={htmlFileRef}
+                  onChange={(e) => handleFileUpload(e, setHtmlContent)}
+                  className="hidden"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="css">كود CSS (اختياري)</Label>
-              <Textarea
-                id="css"
-                value={cssContent}
-                onChange={(e) => setCssContent(e.target.value)}
-                rows={6}
-                className="font-mono text-sm"
-                placeholder="body { ... }"
-              />
-              <Input
-                type="file"
-                accept=".css"
-                onChange={(e) => handleFileChange(e, setCssContent)}
-                className="mt-2"
-              />
+              <div className="space-y-2">
+                <Textarea
+                  id="css"
+                  value={cssContent}
+                  onChange={(e) => setCssContent(e.target.value)}
+                  rows={6}
+                  className="font-mono text-sm transition-all duration-200 focus:ring-2 focus:ring-primary"
+                  placeholder="body { ... }"
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => cssFileRef.current?.click()}
+                    className="hover-scale"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    رفع ملف CSS
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".css"
+                    ref={cssFileRef}
+                    onChange={(e) => handleFileUpload(e, setCssContent)}
+                    className="hidden"
+                  />
+                </div>
+              </div>
             </div>
             <div>
               <Label htmlFor="js">كود JavaScript (اختياري)</Label>
-              <Textarea
-                id="js"
-                value={jsContent}
-                onChange={(e) => setJsContent(e.target.value)}
-                rows={6}
-                className="font-mono text-sm"
-                placeholder="console.log('Hello');"
-              />
-              <Input
-                type="file"
-                accept=".js"
-                onChange={(e) => handleFileChange(e, setJsContent)}
-                className="mt-2"
-              />
+              <div className="space-y-2">
+                <Textarea
+                  id="js"
+                  value={jsContent}
+                  onChange={(e) => setJsContent(e.target.value)}
+                  rows={6}
+                  className="font-mono text-sm transition-all duration-200 focus:ring-2 focus:ring-primary"
+                  placeholder="console.log('Hello');"
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => jsFileRef.current?.click()}
+                    className="hover-scale"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    رفع ملف JS
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".js"
+                    ref={jsFileRef}
+                    onChange={(e) => handleFileUpload(e, setJsContent)}
+                    className="hidden"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -180,7 +235,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 id="featured"
                 checked={isFeatured}
                 onChange={(e) => setIsFeatured(e.target.checked)}
-                className="rounded"
+                className="rounded transition-all duration-200"
               />
               <Label htmlFor="featured">مشروع مميز</Label>
             </div>
@@ -200,10 +255,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
           </div>
 
           <div className="flex gap-2">
-            <Button type="submit">
+            <Button type="submit" className="hover-scale">
               {editingProject ? "تحديث المشروع" : "نشر المشروع"}
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onCancel} className="hover-scale">
               إلغاء
             </Button>
           </div>

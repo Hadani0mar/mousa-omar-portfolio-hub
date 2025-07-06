@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SEO } from '@/components/SEO';
 import { AIAssistant } from '@/components/AIAssistant';
-import { ProjectSlider } from '@/components/ProjectSlider';
 import { ProjectCard } from '@/components/ProjectCard';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -62,11 +61,11 @@ export default function HomePage() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ show_terminal: true });
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [loading, setLoading] = useState(false); // Changed to false for faster initial load
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   useEffect(() => {
-    // Load data without showing loading state for better UX
     loadData();
   }, []);
 
@@ -84,7 +83,10 @@ export default function HomePage() {
       ]);
 
       // Process results
-      if (projectsRes.data) setProjects(projectsRes.data);
+      if (projectsRes.data) {
+        setProjects(projectsRes.data);
+        setAllProjects(projectsRes.data);
+      }
       
       if (notificationsRes.data) {
         const typedNotifications = notificationsRes.data.map(notification => ({
@@ -142,12 +144,10 @@ export default function HomePage() {
 
   const unreadNotifications = notifications.filter(notif => !notif.read);
 
-  // Show simple loading only for data fetching, not blocking entire UI
   if (loading && projects.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background animate-fade-in">
         <SEO />
-        {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
             <div className="flex items-center space-x-4">
@@ -171,22 +171,14 @@ export default function HomePage() {
 
   // Get dynamic settings
   const heroTitle = getAdvancedSetting('hero_title', 'مرحباً، أنا موسى عمر');
-  const heroSubtitle = getAdvancedSetting('hero_subtitle', '  مطور مواقع ليبي متخصص  في تطوير واجهات المستخدم الحديثة والتفاعلية وانشاء مشاريع التخرج التقنية باحدث اطر العمل والاساليب');
-  const projectsPerSlide = parseInt(getAdvancedSetting('projects_per_slide', '3'));
-  const autoSlideInterval = parseInt(getAdvancedSetting('auto_slide_interval', '5000'));
-  const showProjectSlider = getAdvancedSetting('show_project_slider', 'true') === 'true';
-  const maxFeaturedProjects = parseInt(getAdvancedSetting('max_featured_projects', '6'));
-
-  // Filter featured projects
-  const featuredProjects = projects.filter(p => p.is_featured).slice(0, maxFeaturedProjects);
-  const displayProjects = showProjectSlider ? projects : featuredProjects;
+  const heroSubtitle = getAdvancedSetting('hero_subtitle', 'مطور مواقع ليبي متخصص في تطوير واجهات المستخدم الحديثة والتفاعلية وإنشاء مشاريع التخرج التقنية بأحدث إطار العمل والأساليب');
 
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="موسى عمر - مطور مواقع ليبي | أفضل خدمات تطوير المواقع في ليبيا"
-        description="مطور مواقع ليبي محترف متخصص في React, Next.js, TypeScript. أقدم خدمات تطوير مواقع احترافية وحديثة في ليبيا. تواصل معي لتطوير موقعك الإلكتروني."
-        keywords="مطور مواقع ليبيا, تطوير مواقع احترافية, React Developer Libyan, Next.js Libya Sabha,Bn0marDev مطور ويب ليبي, برمجة مواقع ليبيا, موسى عمر"
+        title="موسى عمر - مطور مواقع ليبي | إنشاء مشاريع تخرج الويب HTML CSS JS Next.js خبير n8n"
+        description="موسى عمر مطور مواقع ليبي محترف متخصص في إنشاء مشاريع تخرج الويب باستخدام HTML, CSS, JavaScript, React, Next.js. خبير في n8n وأتمتة المهام. أقدم خدمات تطوير الويب الاحترافية وإنشاء مشاريع التخرج التقنية في ليبيا مع أحدث التقنيات والأدوات"
+        keywords="موسى عمر, مطور مواقع ليبي, إنشاء مشاريع تخرج الويب, HTML CSS JS, Next.js, خبير n8n, React Developer Libya, تطوير واجهات المستخدم, مشاريع تخرج تقنية, برمجة مواقع ليبيا, أتمتة المهام, تطوير تطبيقات الويب, موسى عمر ليبيا, web developer libya, graduation projects, frontend development libya, TypeScript, Tailwind CSS, Node.js, database design, UI/UX, responsive design, mobile development, e-commerce websites, portfolio websites, business websites, SEO optimization, web performance, modern web technologies, full stack developer, API integration, CMS development, WordPress developer, Shopify developer, digital solutions libya, tech consultant libya, freelance developer libya, libya programmer, سبها ليبيا, تطوير مواقع سبها, مبرمج ليبي, استشارات تقنية ليبيا, حلول رقمية ليبيا, تصميم مواقع احترافية, برمجة تطبيقات, تطوير متاجر إلكترونية, تحسين محركات البحث, أداء المواقع, التقنيات الحديثة, مطور فول ستاك, تكامل APIs, إدارة المحتوى, WordPress, Shopify, حلول رقمية"
         url="https://www.m0usa.ly/"
       />
       
@@ -194,14 +186,14 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-blue-600 cursor-pointer">
+            <h1 className="text-xl font-bold text-blue-600 cursor-pointer animate-fade-in">
               موسى عمر 
             </h1>
           </div>
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
             {/* Terminal Link */}
             {siteSettings.show_terminal && (
-              <Button variant="ghost" size="icon" asChild>
+              <Button variant="ghost" size="icon" asChild className="hover-scale">
                 <Link to="/terminal">
                   <Terminal className="h-5 w-5" />
                 </Link>
@@ -214,7 +206,7 @@ export default function HomePage() {
                 variant="ghost"
                 size="icon"
                 onClick={handleNotificationToggle}
-                className="relative transition-all duration-200 hover:scale-105"
+                className="relative transition-all duration-200 hover:scale-105 active:scale-95"
                 aria-label="عرض الإشعارات"
               >
                 <Bell className="h-5 w-5" />
@@ -229,11 +221,11 @@ export default function HomePage() {
               {showNotifications && (
                 <>
                   <div 
-                    className="fixed inset-0 bg-black/20 z-40 md:hidden"
+                    className="fixed inset-0 bg-black/20 z-40 md:hidden animate-fade-in"
                     onClick={() => setShowNotifications(false)}
                   />
                   
-                  <div className="absolute right-0 top-12 w-screen max-w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto md:max-h-96 transform transition-all duration-200 animate-in slide-in-from-top-2">
+                  <div className="absolute right-0 top-12 w-screen max-w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto md:max-h-96 animate-scale-in">
                     <div className="p-4 border-b bg-card rounded-t-lg">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-lg">التحديثات</h3>
@@ -241,7 +233,7 @@ export default function HomePage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setShowNotifications(false)}
-                          className="h-8 w-8 p-0 hover:bg-accent/50"
+                          className="h-8 w-8 p-0 hover:bg-accent/50 hover-scale"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -256,11 +248,11 @@ export default function HomePage() {
                     ) : (
                       <div className="space-y-1 p-2">
                         {notifications.map((notification) => (
-                          <div key={notification.id} className="p-3 border rounded-lg relative bg-card hover:bg-accent/30 transition-all duration-200 group">
+                          <div key={notification.id} className="p-3 border rounded-lg relative bg-card hover:bg-accent/30 transition-all duration-200 group animate-fade-in">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover-scale"
                               onClick={() => dismissNotification(notification.id)}
                             >
                               <X className="h-3 w-3" />
@@ -299,11 +291,11 @@ export default function HomePage() {
 
       <main className="container mx-auto px-4 py-8 space-y-16">
         {/* Hero Section */}
-        <section className="text-center space-y-6 py-12">
+        <section className="text-center space-y-6 py-12 animate-fade-in">
           <div className="space-y-4">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
               {heroTitle.split(' ').map((word, index) => (
-                <span key={index}>
+                <span key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                   {word === 'موسى' || word === 'عمر' ? (
                     <span className="text-blue-600">{word}</span>
                   ) : (
@@ -313,19 +305,19 @@ export default function HomePage() {
                 </span>
               ))}
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.3s' }}>
               {heroSubtitle}
             </p>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button asChild size="lg">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <Button asChild size="lg" className="hover-scale">
               <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
                 <MessageCircle className="h-5 w-5 mr-2" />
                 بدء محادثة
               </a>
             </Button>
-            <Button variant="outline" size="lg" asChild>
+            <Button variant="outline" size="lg" asChild className="hover-scale">
               <a href="https://www.facebook.com/mousa.0mar" target="_blank" rel="noopener noreferrer">
                 <Facebook className="h-5 w-5 mr-2" />
                 Facebook
@@ -333,59 +325,59 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground animate-fade-in" style={{ animationDelay: '0.7s' }}>
             <MapPin className="h-4 w-4" />
             <span>ليبيا</span>
           </div>
         </section>
 
         {/* Enhanced Skills Section */}
-        <section className="space-y-6">
+        <section className="space-y-6 animate-fade-in">
           <h2 className="text-3xl font-bold text-center">المهارات التقنية</h2>
           <div className="flex flex-wrap justify-center gap-3">
-            {skills.map((skill) => (
-              <Badge key={skill.id} variant="secondary" className="text-sm px-3 py-1 hover:bg-accent transition-colors">
+            {skills.map((skill, index) => (
+              <Badge 
+                key={skill.id} 
+                variant="secondary" 
+                className="text-sm px-3 py-1 hover:bg-accent transition-colors hover-scale animate-fade-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 {skill.name}
               </Badge>
             ))}
           </div>
         </section>
 
-        {/* Projects Section */}
-        <section className="space-y-6">
+        {/* Projects Section - Show all projects without slider */}
+        <section className="space-y-6 animate-fade-in">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">
-              {showProjectSlider ? 'جميع المشاريع' : 'المشاريع المميزة'}
-            </h2>
+            <h2 className="text-3xl font-bold">جميع المشاريع</h2>
             <p className="text-muted-foreground">
-              مجموعة من مشاريع تخرج او قوالب من اعمالي متاحة للتنزيل مجانا
+              مجموعة من مشاريع التخرج وقوالب من أعمالي متاحة للتنزيل مجاناً
             </p>
           </div>
 
-          {showProjectSlider ? (
-            <ProjectSlider 
-              projects={displayProjects}
-              projectsPerSlide={projectsPerSlide}
-              autoSlideInterval={autoSlideInterval}
-              showAutoSlide={true}
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {allProjects.map((project, index) => (
+              <div 
+                key={project.id} 
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <ProjectCard project={project} />
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Contact Section */}
-        <section className="text-center space-y-6 py-12">
+        <section className="text-center space-y-6 py-12 animate-fade-in">
           <h2 className="text-3xl font-bold">هل لديك مشروع؟</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             أحب العمل على المشاريع المثيرة والتحديات التقنية الجديدة. 
             تواصل معي ولنناقش كيف يمكنني مساعدتك في تحقيق أهدافك.
           </p>
-          <Button asChild size="lg">
+          <Button asChild size="lg" className="hover-scale">
             <a href={createWhatsAppLink("مرحباً موسى، أود التواصل معك حول مشروع")}>
               بدء محادثة
             </a>
