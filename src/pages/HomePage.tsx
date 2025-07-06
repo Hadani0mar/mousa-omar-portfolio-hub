@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ProjectCard } from '@/components/ProjectCard';
 import { SEO } from '@/components/SEO';
@@ -73,7 +74,7 @@ export default function HomePage() {
     try {
       const { error } = await supabase.rpc(
         type === 'download' ? 'increment_download_count' : 'increment_like_count',
-        { row_id: projectId }
+        { project_id: projectId }
       );
 
       if (error) {
@@ -183,7 +184,6 @@ export default function HomePage() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    onInteraction={handleProjectInteraction}
                   />
                 ))}
               </div>

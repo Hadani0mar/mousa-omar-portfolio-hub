@@ -64,12 +64,30 @@ export default function AdminDashboard() {
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showNotificationForm, setShowNotificationForm] = useState(false);
+  const [showWebsiteForm, setShowWebsiteForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showTerminal, setShowTerminal] = useState(true);
   const { toast } = useToast();
   const [editingAIInstruction, setEditingAIInstruction] = useState<string | null>(null);
   const [editingAdvancedSetting, setEditingAdvancedSetting] = useState<string | null>(null);
   const [tempValues, setTempValues] = useState<{ [key: string]: string }>({});
+
+  // Project form states
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [technologies, setTechnologies] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
+  const [cssContent, setCssContent] = useState('');
+  const [jsContent, setJsContent] = useState('');
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [displayOrder, setDisplayOrder] = useState(0);
+  const [projectStatus, setProjectStatus] = useState('active');
+
+  // Notification form states
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [type, setType] = useState<'info' | 'success' | 'warning'>('info');
+  const [expirationHours, setExpirationHours] = useState('24');
 
   useEffect(() => {
     loadData();
@@ -132,6 +150,150 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
+    }
+  };
+
+  const updateTerminalSetting = async (value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('site_config')
+        .update({ show_terminal: value })
+        .eq('id', 1);
+
+      if (error) throw error;
+
+      setShowTerminal(value);
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث إعدادات Terminal بنجاح",
+      });
+    } catch (error) {
+      console.error('Error updating terminal setting:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث الإعدادات",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const projectData = {
+        title,
+        description,
+        technologies: technologies.split(',').map(t => t.trim()).filter(t => t),
+        html_content: htmlContent,
+        css_content: cssContent,
+        js_content: jsContent,
+        is_featured: isFeatured,
+        display_order: displayOrder,
+        project_status: projectStatus,
+      };
+
+      if (editingProject) {
+        const { error } = await supabase
+          .from('projects')
+          .update(projectData)
+          .eq('id', editingProject.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "تم التحديث",
+          description: "تم تحديث المشروع بنجاح",
+        });
+      } else {
+        const { error } = await supabase
+          .from('projects')
+          .insert([projectData]);
+
+        if (error) throw error;
+
+        toast({
+          title: "تم النشر",
+          description: "تم نشر المشروع بنجاح",
+        });
+      }
+
+      resetProjectForm();
+      loadData();
+    } catch (error) {
+      console.error('Error saving project:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حفظ المشروع",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNotificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const hoursToAdd = parseInt(expirationHours);
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + hoursToAdd);
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert([{
+          title: notificationTitle,
+          message,
+          type,
+          expires_at: expiresAt.toISOString(),
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم النشر",
+        description: "تم نشر التحديث بنجاح",
+      });
+
+      // Reset form
+      setNotificationTitle('');
+      setMessage('');
+      setType('info');
+      setExpirationHours('24');
+      setShowNotificationForm(false);
+      loadData();
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في نشر التحديث",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا التحديث؟')) return;
+
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف التحديث بنجاح",
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف التحديث",
+        variant: "destructive",
+      });
     }
   };
 
@@ -199,11 +361,29 @@ export default function AdminDashboard() {
   };
 
   const resetProjectForm = () => {
+    setTitle('');
+    setDescription('');
+    setTechnologies('');
+    setHtmlContent('');
+    setCssContent('');
+    setJsContent('');
+    setIsFeatured(false);
+    setDisplayOrder(0);
+    setProjectStatus('active');
     setEditingProject(null);
     setShowProjectForm(false);
   };
 
   const handleEditProject = (project: Project) => {
+    setTitle(project.title);
+    setDescription(project.description);
+    setTechnologies(project.technologies.join(', '));
+    setHtmlContent(project.html_content);
+    setCssContent(project.css_content || '');
+    setJsContent(project.js_content || '');
+    setIsFeatured(project.is_featured);
+    setDisplayOrder(project.display_order);
+    setProjectStatus(project.project_status);
     setEditingProject(project);
     setShowProjectForm(true);
   };
@@ -270,9 +450,29 @@ export default function AdminDashboard() {
           <ProjectForm
             showForm={showProjectForm}
             editingProject={!!editingProject}
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            technologies={technologies}
+            setTechnologies={setTechnologies}
+            htmlContent={htmlContent}
+            setHtmlContent={setHtmlContent}
+            cssContent={cssContent}
+            setCssContent={setCssContent}
+            jsContent={jsContent}
+            setJsContent={setJsContent}
+            isFeatured={isFeatured}
+            setIsFeatured={setIsFeatured}
+            displayOrder={displayOrder}
+            setDisplayOrder={setDisplayOrder}
+            projectStatus={projectStatus}
+            setProjectStatus={setProjectStatus}
+            onSubmit={handleProjectSubmit}
             onCancel={resetProjectForm}
           />
 
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
               <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
@@ -333,6 +533,15 @@ export default function AdminDashboard() {
 
           <NotificationForm
             showForm={showNotificationForm}
+            title={notificationTitle}
+            setTitle={setNotificationTitle}
+            message={message}
+            setMessage={setMessage}
+            type={type}
+            setType={setType}
+            expirationHours={expirationHours}
+            setExpirationHours={setExpirationHours}
+            onSubmit={handleNotificationSubmit}
             onCancel={() => setShowNotificationForm(false)}
           />
 
@@ -388,7 +597,6 @@ export default function AdminDashboard() {
           </div>
 
           <WebsiteShowcase />
-
         </TabsContent>
 
         <TabsContent value="skills">
