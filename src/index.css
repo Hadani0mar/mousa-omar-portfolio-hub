@@ -4,86 +4,50 @@
 @tailwind utilities;
 
 /* GitHub-inspired Design System */
-
 @layer base {
   :root {
     --background: 0 0% 100%;
     --foreground: 213 27% 12%;
-
     --card: 0 0% 100%;
     --card-foreground: 213 27% 12%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 213 27% 12%;
-
     --primary: 213 94% 68%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 220 14% 96%;
     --secondary-foreground: 213 27% 12%;
-
     --muted: 220 13% 95%;
     --muted-foreground: 220 9% 46%;
-
     --accent: 220 14% 96%;
     --accent-foreground: 213 27% 12%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 213 94% 68%;
-
     --radius: 6px;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 220 9% 46%;
-    --sidebar-primary: 213 94% 68%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 213 27% 12%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 213 94% 68%;
   }
 
   .dark {
     --background: 220 13% 9%;
     --foreground: 220 9% 98%;
-
     --card: 220 13% 9%;
     --card-foreground: 220 9% 98%;
-
     --popover: 220 13% 9%;
     --popover-foreground: 220 9% 98%;
-
     --primary: 213 94% 68%;
     --primary-foreground: 220 13% 9%;
-
     --secondary: 215 25% 15%;
     --secondary-foreground: 220 9% 98%;
-
     --muted: 215 25% 15%;
     --muted-foreground: 220 9% 65%;
-
     --accent: 215 25% 15%;
     --accent-foreground: 220 9% 98%;
-
     --destructive: 0 63% 31%;
     --destructive-foreground: 220 9% 98%;
-
     --border: 215 25% 15%;
     --input: 215 25% 15%;
     --ring: 213 94% 68%;
-
-    --sidebar-background: 220 13% 9%;
-    --sidebar-foreground: 220 9% 65%;
-    --sidebar-primary: 213 94% 68%;
-    --sidebar-primary-foreground: 220 13% 9%;
-    --sidebar-accent: 215 25% 15%;
-    --sidebar-accent-foreground: 220 9% 98%;
-    --sidebar-border: 215 25% 15%;
-    --sidebar-ring: 213 94% 68%;
   }
 }
 
@@ -97,7 +61,7 @@
   }
 }
 
-/* Enhanced GitHub-style Animations */
+/* Essential Animations Only */
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out forwards;
@@ -109,41 +73,6 @@
 
   .animate-slide-up {
     animation: slideUp 0.3s ease-out forwards;
-  }
-
-  .hover-scale {
-    @apply transition-transform duration-200 hover:scale-105 active:scale-95;
-  }
-
-  .hover-glow {
-    @apply transition-all duration-200 hover:shadow-md hover:shadow-primary/10;
-  }
-
-  /* GitHub-style button effects */
-  .github-button {
-    @apply relative overflow-hidden transition-all duration-200;
-  }
-
-  .github-button:hover {
-    @apply shadow-sm;
-  }
-
-  .github-button:active {
-    @apply scale-95;
-  }
-
-  /* Notification animations */
-  .notification-enter {
-    animation: slideInRight 0.2s ease-out;
-  }
-
-  .notification-exit {
-    animation: slideOutRight 0.2s ease-in;
-  }
-
-  /* Smooth interactions */
-  .smooth-interaction {
-    @apply transition-all duration-200 ease-in-out;
   }
 }
 
@@ -180,57 +109,9 @@
   }
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideOutRight {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-/* GitHub-style scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
-}
-
 /* Responsive improvements */
 @media (max-width: 768px) {
   .container {
     @apply px-4;
-  }
-}
-
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
   }
 }

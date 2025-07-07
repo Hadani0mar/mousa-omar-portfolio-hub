@@ -20,7 +20,6 @@ interface WebsitePreview {
 
 export default function WebsiteShowcase() {
   const [websites, setWebsites] = useState<WebsitePreview[]>([]);
-  const [selectedWebsite, setSelectedWebsite] = useState<WebsitePreview | null>(null);
   const [showPreview, setShowPreview] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
@@ -54,7 +53,7 @@ export default function WebsiteShowcase() {
     return (
       <div className="text-center py-16">
         <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
-        <h3 className="text-xl font-semibold mb-2">لا توجد مواقع منشورة حالياً</h3>
+        <h3 className="text-xl font-semibold mb-2 text-foreground">لا توجد مواقع منشورة حالياً</h3>
         <p className="text-muted-foreground">سيتم عرض المواقع المنشورة هنا قريباً</p>
       </div>
     );
@@ -63,7 +62,7 @@ export default function WebsiteShowcase() {
   return (
     <div className="space-y-8 w-full">
       <div className="text-center mb-12">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
           المواقع المنشورة
         </h2>
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
@@ -73,16 +72,16 @@ export default function WebsiteShowcase() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {websites.map((website) => (
-          <Card key={website.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover-scale group border-2 hover:border-green-500/50 bg-white/80 backdrop-blur-sm">
+          <Card key={website.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-200 border border-border bg-card text-card-foreground">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg sm:text-xl flex items-center gap-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                    <Globe className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Globe className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   </div>
-                  <span className="truncate">{website.title}</span>
+                  <span className="truncate text-foreground">{website.title}</span>
                 </CardTitle>
-                <Badge variant="default" className="bg-green-100 text-green-800 border-green-300 text-xs">
+                <Badge variant="secondary" className="bg-secondary text-secondary-foreground text-xs">
                   نشط
                 </Badge>
               </div>
@@ -97,7 +96,7 @@ export default function WebsiteShowcase() {
                   size="sm"
                   variant="outline"
                   onClick={() => togglePreview(website.id)}
-                  className="flex-1 hover:bg-blue-50 hover:border-blue-300 text-xs sm:text-sm"
+                  className="flex-1 text-xs sm:text-sm border-border hover:bg-accent hover:text-accent-foreground"
                 >
                   {showPreview[website.id] ? (
                     <>
@@ -117,19 +116,19 @@ export default function WebsiteShowcase() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="hover:bg-purple-50 hover:border-purple-300 sm:flex-none"
+                      className="sm:flex-none border-border hover:bg-accent hover:text-accent-foreground"
                     >
                       <Monitor className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-6xl w-full max-h-[90vh] mx-4">
+                  <DialogContent className="max-w-6xl w-full max-h-[90vh] mx-4 bg-background border-border">
                     <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2 text-right">
+                      <DialogTitle className="flex items-center gap-2 text-right text-foreground">
                         <Globe className="h-5 w-5" />
                         {website.title}
                       </DialogTitle>
                     </DialogHeader>
-                    <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
+                    <div className="w-full h-[70vh] border border-border rounded-lg overflow-hidden">
                       <iframe
                         src={website.url}
                         className="w-full h-full border-0"
@@ -144,7 +143,7 @@ export default function WebsiteShowcase() {
                 <Button
                   size="sm"
                   asChild
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 flex-1 sm:flex-none text-xs sm:text-sm"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex-1 sm:flex-none text-xs sm:text-sm"
                 >
                   <a href={website.url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -154,25 +153,25 @@ export default function WebsiteShowcase() {
               </div>
 
               {showPreview[website.id] && (
-                <div className="border rounded-lg overflow-hidden animate-scale-in shadow-lg">
-                  <div className="bg-muted px-4 py-2 text-sm text-muted-foreground flex items-center gap-2 border-b">
+                <div className="border border-border rounded-lg overflow-hidden bg-background">
+                  <div className="bg-muted px-4 py-2 text-sm text-muted-foreground flex items-center gap-2 border-b border-border">
                     <Globe className="h-4 w-4" />
                     <span className="truncate text-xs">{website.url}</span>
                   </div>
-                  <div className="relative bg-white">
+                  <div className="relative">
                     <iframe
                       src={website.url}
-                      className="w-full h-48 sm:h-64 border-0 pointer-events-none"
+                      className="w-full h-48 sm:h-64 border-0"
                       title={`معاينة ${website.title}`}
                       loading="lazy"
                       sandbox="allow-scripts allow-same-origin"
                     />
                     <div 
-                      className="absolute inset-0 bg-transparent cursor-pointer hover:bg-black/5 transition-colors flex items-center justify-center" 
+                      className="absolute inset-0 bg-transparent cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center justify-center" 
                       onClick={() => window.open(website.url, '_blank')}
                       title="انقر للفتح في نافذة جديدة"
                     >
-                      <div className="bg-black/60 text-white px-4 py-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                      <div className="bg-black/60 dark:bg-white/60 text-white dark:text-black px-4 py-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
                         <ExternalLink className="h-5 w-5 mx-auto mb-1" />
                         <span className="text-sm">فتح الموقع</span>
                       </div>
