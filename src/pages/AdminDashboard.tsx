@@ -86,6 +86,23 @@ export default function AdminDashboard() {
   const [showWebsiteForm, setShowWebsiteForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   
+  // Project Form States
+  const [projectTitle, setProjectTitle] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectTechnologies, setProjectTechnologies] = useState('');
+  const [projectHtmlContent, setProjectHtmlContent] = useState('');
+  const [projectCssContent, setProjectCssContent] = useState('');
+  const [projectJsContent, setProjectJsContent] = useState('');
+  const [projectIsFeatured, setProjectIsFeatured] = useState(false);
+  const [projectDisplayOrder, setProjectDisplayOrder] = useState(0);
+  const [projectStatus, setProjectStatus] = useState('active');
+
+  // Notification Form States
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'info' | 'success' | 'warning'>('info');
+  const [notificationExpirationHours, setNotificationExpirationHours] = useState('24');
+  
   // Website Form
   const [websiteTitle, setWebsiteTitle] = useState('');
   const [websiteDescription, setWebsiteDescription] = useState('');
@@ -251,6 +268,107 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const projectData = {
+        title: projectTitle,
+        description: projectDescription,
+        technologies: projectTechnologies.split(',').map(t => t.trim()).filter(t => t),
+        html_content: projectHtmlContent,
+        css_content: projectCssContent || null,
+        js_content: projectJsContent || null,
+        is_featured: projectIsFeatured,
+        display_order: projectDisplayOrder,
+        project_status: projectStatus,
+      };
+
+      if (editingProject) {
+        const { error } = await supabase
+          .from('projects')
+          .update(projectData)
+          .eq('id', editingProject.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('projects')
+          .insert(projectData);
+        if (error) throw error;
+      }
+
+      resetProjectForm();
+      loadData();
+      alert(editingProject ? 'تم تحديث المشروع بنجاح' : 'تم إضافة المشروع بنجاح');
+    } catch (error) {
+      console.error('Error saving project:', error);
+      alert('فشل في حفظ المشروع');
+    }
+  };
+
+  const handleNotificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const expirationDate = new Date();
+      expirationDate.setHours(expirationDate.getHours() + parseInt(notificationExpirationHours));
+
+      const notificationData = {
+        title: notificationTitle,
+        message: notificationMessage,
+        type: notificationType,
+        expires_at: expirationDate.toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert(notificationData);
+
+      if (error) throw error;
+
+      resetNotificationForm();
+      loadData();
+      alert('تم إضافة الإشعار بنجاح');
+    } catch (error) {
+      console.error('Error saving notification:', error);
+      alert('فشل في إضافة الإشعار');
+    }
+  };
+
+  const resetProjectForm = () => {
+    setShowProjectForm(false);
+    setEditingProject(null);
+    setProjectTitle('');
+    setProjectDescription('');
+    setProjectTechnologies('');
+    setProjectHtmlContent('');
+    setProjectCssContent('');
+    setProjectJsContent('');
+    setProjectIsFeatured(false);
+    setProjectDisplayOrder(0);
+    setProjectStatus('active');
+  };
+
+  const resetNotificationForm = () => {
+    setShowNotificationForm(false);
+    setNotificationTitle('');
+    setNotificationMessage('');
+    setNotificationType('info');
+    setNotificationExpirationHours('24');
+  };
+
+  const editProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectTitle(project.title);
+    setProjectDescription(project.description);
+    setProjectTechnologies(project.technologies?.join(', ') || '');
+    setProjectHtmlContent(project.html_content);
+    setProjectCssContent(project.css_content || '');
+    setProjectJsContent(project.js_content || '');
+    setProjectIsFeatured(project.is_featured);
+    setProjectDisplayOrder(project.display_order);
+    setProjectStatus(project.project_status);
+    setShowProjectForm(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -334,10 +452,7 @@ export default function AdminDashboard() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => {
-                              setEditingProject(project);
-                              setShowProjectForm(true);
-                            }}
+                            onClick={() => editProject(project)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -382,16 +497,26 @@ export default function AdminDashboard() {
               <ProjectForm
                 showForm={showProjectForm}
                 editingProject={!!editingProject}
-                project={editingProject}
-                onCancel={() => {
-                  setShowProjectForm(false);
-                  setEditingProject(null);
-                }}
-                onSave={() => {
-                  setShowProjectForm(false);
-                  setEditingProject(null);
-                  loadData();
-                }}
+                title={projectTitle}
+                setTitle={setProjectTitle}
+                description={projectDescription}
+                setDescription={setProjectDescription}
+                technologies={projectTechnologies}
+                setTechnologies={setProjectTechnologies}
+                htmlContent={projectHtmlContent}
+                setHtmlContent={setProjectHtmlContent}
+                cssContent={projectCssContent}
+                setCssContent={setProjectCssContent}
+                jsContent={projectJsContent}
+                setJsContent={setProjectJsContent}
+                isFeatured={projectIsFeatured}
+                setIsFeatured={setProjectIsFeatured}
+                displayOrder={projectDisplayOrder}
+                setDisplayOrder={setProjectDisplayOrder}
+                projectStatus={projectStatus}
+                setProjectStatus={setProjectStatus}
+                onSubmit={handleProjectSubmit}
+                onCancel={resetProjectForm}
               />
             )}
           </TabsContent>
@@ -541,11 +666,16 @@ export default function AdminDashboard() {
             {showNotificationForm && (
               <NotificationForm
                 showForm={showNotificationForm}
-                onCancel={() => setShowNotificationForm(false)}
-                onSave={() => {
-                  setShowNotificationForm(false);
-                  loadData();
-                }}
+                title={notificationTitle}
+                setTitle={setNotificationTitle}
+                message={notificationMessage}
+                setMessage={setNotificationMessage}
+                type={notificationType}
+                setType={setNotificationType}
+                expirationHours={notificationExpirationHours}
+                setExpirationHours={setNotificationExpirationHours}
+                onSubmit={handleNotificationSubmit}
+                onCancel={resetNotificationForm}
               />
             )}
           </TabsContent>
