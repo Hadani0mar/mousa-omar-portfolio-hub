@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,6 @@ import {
   Trash2, 
   Save,
   Eye,
-  EyeOff,
   Monitor,
   ExternalLink
 } from 'lucide-react';
@@ -103,7 +101,7 @@ export default function AdminDashboard() {
   const [notificationType, setNotificationType] = useState<'info' | 'success' | 'warning'>('info');
   const [notificationExpirationHours, setNotificationExpirationHours] = useState('24');
   
-  // Website Form
+  // Website Form States
   const [websiteTitle, setWebsiteTitle] = useState('');
   const [websiteDescription, setWebsiteDescription] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -175,7 +173,7 @@ export default function AdminDashboard() {
 
   const saveAISettings = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('ai_model_settings')
         .upsert({
           model_name: modelName,
@@ -211,11 +209,16 @@ export default function AdminDashboard() {
 
   const saveWebsite = async () => {
     try {
+      if (!websiteTitle.trim() || !websiteUrl.trim()) {
+        alert('يرجى إدخال عنوان الموقع والرابط');
+        return;
+      }
+
       const websiteData = {
-        title: websiteTitle,
-        description: websiteDescription,
-        url: websiteUrl,
-        screenshot_url: websiteScreenshot || null,
+        title: websiteTitle.trim(),
+        description: websiteDescription.trim() || websiteTitle.trim(),
+        url: websiteUrl.trim(),
+        screenshot_url: websiteScreenshot.trim() || null,
         is_active: true,
         display_order: websites.length + 1,
       };
@@ -226,18 +229,22 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      setShowWebsiteForm(false);
-      setWebsiteTitle('');
-      setWebsiteDescription('');
-      setWebsiteUrl('');
-      setWebsiteScreenshot('');
+      resetWebsiteForm();
       loadData();
       
       alert('تم إضافة الموقع بنجاح');
     } catch (error) {
       console.error('Error saving website:', error);
-      alert('فشل في إضافة الموقع');
+      alert('فشل في إضافة الموقع: ' + (error as any).message);
     }
+  };
+
+  const resetWebsiteForm = () => {
+    setShowWebsiteForm(false);
+    setWebsiteTitle('');
+    setWebsiteDescription('');
+    setWebsiteUrl('');
+    setWebsiteScreenshot('');
   };
 
   const deleteNotification = async (id: string) => {
@@ -255,6 +262,8 @@ export default function AdminDashboard() {
   };
 
   const deleteWebsite = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الموقع؟')) return;
+    
     try {
       const { error } = await supabase
         .from('website_previews')
@@ -371,45 +380,45 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
             لوحة التحكم الإدارية
           </h1>
           <p className="text-muted-foreground">إدارة شاملة لموقع موسى عمر</p>
         </div>
 
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1">
-            <TabsTrigger value="projects" className="flex items-center gap-2 p-3">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 bg-muted">
+            <TabsTrigger value="projects" className="flex items-center gap-2 p-3 github-button">
               <Code className="h-4 w-4" />
               <span className="hidden sm:inline">المشاريع</span>
             </TabsTrigger>
-            <TabsTrigger value="websites" className="flex items-center gap-2 p-3">
+            <TabsTrigger value="websites" className="flex items-center gap-2 p-3 github-button">
               <Globe className="h-4 w-4" />
               <span className="hidden sm:inline">المواقع</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2 p-3">
+            <TabsTrigger value="notifications" className="flex items-center gap-2 p-3 github-button">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">الإشعارات</span>
             </TabsTrigger>
-            <TabsTrigger value="skills" className="flex items-center gap-2 p-3">
+            <TabsTrigger value="skills" className="flex items-center gap-2 p-3 github-button">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">المهارات</span>
             </TabsTrigger>
-            <TabsTrigger value="ai" className="flex items-center gap-2 p-3">
+            <TabsTrigger value="ai" className="flex items-center gap-2 p-3 github-button">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">الذكاء الاصطناعي</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2 p-3">
+            <TabsTrigger value="settings" className="flex items-center gap-2 p-3 github-button">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">الإعدادات</span>
             </TabsTrigger>
@@ -417,18 +426,18 @@ export default function AdminDashboard() {
 
           {/* Projects Tab */}
           <TabsContent value="projects" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-border">
                 <CardTitle>إدارة المشاريع</CardTitle>
-                <Button onClick={() => setShowProjectForm(true)}>
+                <Button onClick={() => setShowProjectForm(true)} className="github-button">
                   <Plus className="h-4 w-4 mr-2" />
                   إضافة مشروع
                 </Button>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <CardContent className="p-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
                   {projects.map((project) => (
-                    <Card key={project.id} className="hover:shadow-lg transition-shadow">
+                    <Card key={project.id} className="hover:shadow-md transition-shadow github-button border-border">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg">{project.title}</CardTitle>
@@ -453,12 +462,13 @@ export default function AdminDashboard() {
                             size="sm"
                             variant="outline"
                             onClick={() => editProject(project)}
+                            className="github-button"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" className="github-button">
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
@@ -466,7 +476,7 @@ export default function AdminDashboard() {
                               <DialogHeader>
                                 <DialogTitle>{project.title}</DialogTitle>
                               </DialogHeader>
-                              <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
+                              <div className="w-full h-[70vh] border rounded-lg overflow-hidden border-border">
                                 <iframe
                                   srcDoc={`
                                     <html>
@@ -523,18 +533,18 @@ export default function AdminDashboard() {
 
           {/* Websites Tab */}
           <TabsContent value="websites" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-border">
                 <CardTitle>إدارة المواقع المنشورة</CardTitle>
-                <Button onClick={() => setShowWebsiteForm(true)}>
+                <Button onClick={() => setShowWebsiteForm(true)} className="github-button">
                   <Plus className="h-4 w-4 mr-2" />
                   إضافة موقع
                 </Button>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <CardContent className="p-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
                   {websites.map((website) => (
-                    <Card key={website.id} className="hover:shadow-lg transition-shadow">
+                    <Card key={website.id} className="hover:shadow-md transition-shadow github-button border-border">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-lg">{website.title}</CardTitle>
                       </CardHeader>
@@ -543,7 +553,7 @@ export default function AdminDashboard() {
                           {website.description}
                         </p>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" asChild>
+                          <Button size="sm" variant="outline" asChild className="github-button">
                             <a href={website.url} target="_blank" rel="noopener noreferrer">
                               <ExternalLink className="h-4 w-4 mr-1" />
                               زيارة
@@ -553,6 +563,7 @@ export default function AdminDashboard() {
                             size="sm"
                             variant="outline"
                             onClick={() => deleteWebsite(website.id)}
+                            className="github-button hover:bg-destructive hover:text-destructive-foreground"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -565,18 +576,19 @@ export default function AdminDashboard() {
             </Card>
 
             {showWebsiteForm && (
-              <Card>
-                <CardHeader>
+              <Card className="border-border">
+                <CardHeader className="border-b border-border">
                   <CardTitle>إضافة موقع جديد</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 p-6">
                   <div>
-                    <Label htmlFor="website-title">عنوان الموقع</Label>
+                    <Label htmlFor="website-title">عنوان الموقع *</Label>
                     <Input
                       id="website-title"
                       value={websiteTitle}
                       onChange={(e) => setWebsiteTitle(e.target.value)}
                       placeholder="اسم الموقع..."
+                      className="mt-1"
                     />
                   </div>
                   <div>
@@ -586,15 +598,17 @@ export default function AdminDashboard() {
                       value={websiteDescription}
                       onChange={(e) => setWebsiteDescription(e.target.value)}
                       placeholder="وصف مختصر للموقع..."
+                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="website-url">رابط الموقع</Label>
+                    <Label htmlFor="website-url">رابط الموقع *</Label>
                     <Input
                       id="website-url"
                       value={websiteUrl}
                       onChange={(e) => setWebsiteUrl(e.target.value)}
                       placeholder="https://example.com"
+                      className="mt-1"
                     />
                   </div>
                   <div>
@@ -604,14 +618,15 @@ export default function AdminDashboard() {
                       value={websiteScreenshot}
                       onChange={(e) => setWebsiteScreenshot(e.target.value)}
                       placeholder="https://example.com/screenshot.png"
+                      className="mt-1"
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={saveWebsite}>
+                    <Button onClick={saveWebsite} className="github-button">
                       <Save className="h-4 w-4 mr-2" />
                       حفظ
                     </Button>
-                    <Button variant="outline" onClick={() => setShowWebsiteForm(false)}>
+                    <Button variant="outline" onClick={resetWebsiteForm} className="github-button">
                       إلغاء
                     </Button>
                   </div>
@@ -622,18 +637,18 @@ export default function AdminDashboard() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-border">
                 <CardTitle>إدارة الإشعارات</CardTitle>
-                <Button onClick={() => setShowNotificationForm(true)}>
+                <Button onClick={() => setShowNotificationForm(true)} className="github-button">
                   <Plus className="h-4 w-4 mr-2" />
                   إضافة إشعار
                 </Button>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="p-0">
+                <div className="space-y-4 p-6">
                   {notifications.map((notification) => (
-                    <Card key={notification.id}>
+                    <Card key={notification.id} className="github-button border-border">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -652,6 +667,7 @@ export default function AdminDashboard() {
                             size="sm"
                             variant="outline"
                             onClick={() => deleteNotification(notification.id)}
+                            className="github-button hover:bg-destructive hover:text-destructive-foreground"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -687,11 +703,11 @@ export default function AdminDashboard() {
 
           {/* AI Settings Tab */}
           <TabsContent value="ai" className="space-y-6">
-            <Card>
-              <CardHeader>
+            <Card className="border-border">
+              <CardHeader className="border-b border-border">
                 <CardTitle>إعدادات الذكاء الاصطناعي</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 p-6">
                 <div>
                   <Label htmlFor="system-prompt">النص الأساسي للنظام</Label>
                   <Textarea
@@ -700,6 +716,7 @@ export default function AdminDashboard() {
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder="أدخل النص الأساسي للذكاء الاصطناعي..."
                     rows={4}
+                    className="mt-1"
                   />
                 </div>
                 <div>
@@ -710,6 +727,7 @@ export default function AdminDashboard() {
                     onChange={(e) => setWeeklyInstructions(e.target.value)}
                     placeholder="التعليمات الأسبوعية..."
                     rows={3}
+                    className="mt-1"
                   />
                 </div>
                 <div>
@@ -720,9 +738,10 @@ export default function AdminDashboard() {
                     onChange={(e) => setMonthlyInstructions(e.target.value)}
                     placeholder="التعليمات الشهرية..."
                     rows={3}
+                    className="mt-1"
                   />
                 </div>
-                <Button onClick={saveAISettings} className="w-full">
+                <Button onClick={saveAISettings} className="w-full github-button">
                   <Save className="h-4 w-4 mr-2" />
                   حفظ إعدادات الذكاء الاصطناعي
                 </Button>
@@ -732,11 +751,11 @@ export default function AdminDashboard() {
 
           {/* Site Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <CardHeader>
+            <Card className="border-border">
+              <CardHeader className="border-b border-border">
                 <CardTitle>إعدادات الموقع</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="show-terminal">عرض الطرفية</Label>

@@ -20,13 +20,13 @@ interface Notification {
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case 'success':
-      return <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />;
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
     case 'warning':
-      return <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />;
+      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
     case 'error':
-      return <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />;
+      return <AlertCircle className="h-4 w-4 text-red-500" />;
     default:
-      return <Info className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />;
+      return <Info className="h-4 w-4 text-blue-500" />;
   }
 };
 
@@ -50,8 +50,6 @@ export default function NotificationsPopup() {
 
   useEffect(() => {
     loadNotifications();
-    
-    // تحديث الإشعارات كل دقيقة
     const interval = setInterval(loadNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -91,15 +89,16 @@ export default function NotificationsPopup() {
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button 
-          variant="outline" 
+          variant="ghost" 
           size="icon" 
-          className="relative hover-scale bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-2 hover:border-blue-500/50 shadow-lg h-10 w-10 sm:h-12 sm:w-12"
+          className="relative h-8 w-8 smooth-interaction hover:bg-accent"
+          title="الإشعارات"
         >
-          <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Bell className="h-4 w-4" />
           {notifications.length > 0 && (
             <Badge 
               variant="destructive" 
-              className="absolute -top-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 rounded-full p-0 flex items-center justify-center text-xs animate-pulse"
+              className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-xs"
             >
               {notifications.length > 9 ? '9+' : notifications.length}
             </Badge>
@@ -108,15 +107,15 @@ export default function NotificationsPopup() {
       </PopoverTrigger>
       
       <PopoverContent 
-        className="w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] p-0 shadow-xl border-2"
+        className="w-80 max-w-[calc(100vw-2rem)] p-0 shadow-lg border"
         align="end"
         sideOffset={8}
       >
         <Card className="border-0 shadow-none">
-          <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50">
+          <CardHeader className="pb-3 bg-muted/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bell className="h-4 w-4" />
                 الإشعارات
               </CardTitle>
               <div className="flex items-center gap-2">
@@ -129,9 +128,9 @@ export default function NotificationsPopup() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="h-6 w-6 sm:h-8 sm:w-8 p-0"
+                  className="h-6 w-6 p-0"
                 >
-                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <X className="h-3 w-3" />
                 </Button>
               </div>
             </div>
@@ -140,21 +139,21 @@ export default function NotificationsPopup() {
           <CardContent className="p-0">
             {loading ? (
               <div className="p-6 text-center">
-                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-2">جاري التحميل...</p>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                <p className="text-sm text-muted-foreground mt-2">جاري التحميل...</p>
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-6 text-center">
-                <Bell className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                <p className="text-xs sm:text-sm text-muted-foreground">لا توجد إشعارات جديدة</p>
+                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-sm text-muted-foreground">لا توجد إشعارات جديدة</p>
               </div>
             ) : (
-              <ScrollArea className="max-h-64 sm:max-h-80">
+              <ScrollArea className="max-h-80">
                 <div className="p-2 space-y-2">
                   {notifications.map((notification, index) => (
                     <div
                       key={notification.id}
-                      className="p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
+                      className="p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in smooth-interaction"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <div className="flex items-start gap-3">
@@ -163,7 +162,7 @@ export default function NotificationsPopup() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <h4 className="font-medium text-xs sm:text-sm truncate">{notification.title}</h4>
+                            <h4 className="font-medium text-sm truncate">{notification.title}</h4>
                             <Badge 
                               variant={getNotificationBadgeVariant(notification.type)}
                               className="text-xs flex-shrink-0"
@@ -171,7 +170,7 @@ export default function NotificationsPopup() {
                               {notification.type}
                             </Badge>
                           </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-2">
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                             {notification.message}
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -190,7 +189,7 @@ export default function NotificationsPopup() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="w-full text-xs sm:text-sm"
+                  className="w-full text-sm github-button"
                   onClick={loadNotifications}
                 >
                   تحديث الإشعارات
