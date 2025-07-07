@@ -85,6 +85,10 @@ export default function HomePage() {
     }
   };
 
+  const toggleAIChat = () => {
+    setShowAIChat(!showAIChat);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <TopNavigationBar />
@@ -107,7 +111,7 @@ export default function HomePage() {
 
             <div className="flex flex-wrap justify-center gap-4 mb-12">
               <Button
-                onClick={() => setShowAIChat(true)}
+                onClick={toggleAIChat}
                 className="github-button bg-primary hover:bg-primary/90"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
@@ -177,7 +181,7 @@ export default function HomePage() {
               يمكنك التحدث مع مساعدي الذكي للحصول على المساعدة أو معرفة المزيد عن خدماتي
             </p>
             <Button
-              onClick={() => setShowAIChat(true)}
+              onClick={toggleAIChat}
               size="lg"
               className="github-button bg-primary hover:bg-primary/90"
             >
@@ -189,9 +193,7 @@ export default function HomePage() {
       </main>
 
       {/* AI Chat */}
-      {showAIChat && (
-        <AIAssistant onClose={() => setShowAIChat(false)} />
-      )}
+      <AIAssistant isOpen={showAIChat} onToggle={toggleAIChat} />
     </div>
   );
 }
