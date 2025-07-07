@@ -94,7 +94,7 @@ export default function ProjectView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">جاري تحميل المشروع...</p>
@@ -105,11 +105,11 @@ export default function ProjectView() {
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">المشروع غير موجود</h1>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">المشروع غير موجود</h1>
           <Link to="/">
-            <Button>العودة للرئيسية</Button>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">العودة للرئيسية</Button>
           </Link>
         </div>
       </div>
@@ -119,11 +119,11 @@ export default function ProjectView() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
             <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:bg-accent hover:text-accent-foreground">
                 <ArrowLeft className="h-4 w-4" />
                 العودة للمعرض
               </Button>
@@ -139,9 +139,9 @@ export default function ProjectView() {
           <div className="mb-8">
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold">{project.title}</h1>
+                <h1 className="text-3xl font-bold text-foreground">{project.title}</h1>
                 {project.is_featured && (
-                  <Badge variant="default">مميز</Badge>
+                  <Badge variant="default" className="bg-primary text-primary-foreground">مميز</Badge>
                 )}
               </div>
             </div>
@@ -150,7 +150,9 @@ export default function ProjectView() {
             {/* Technologies */}
             <div className="flex flex-wrap gap-2 mb-6">
               {project.technologies.map((tech) => (
-                <Badge key={tech} variant="secondary">{tech}</Badge>
+                <Badge key={tech} variant="secondary" className="bg-secondary text-secondary-foreground">
+                  {tech}
+                </Badge>
               ))}
             </div>
 
@@ -176,20 +178,20 @@ export default function ProjectView() {
                   variant="outline" 
                   onClick={handleLike}
                   disabled={stats?.user_liked}
-                  className={`${stats?.user_liked ? 'bg-red-50 border-red-300' : 'hover:bg-red-50 hover:border-red-300'}`}
+                  className={`border-border hover:bg-accent hover:text-accent-foreground ${stats?.user_liked ? 'bg-red-50 border-red-300 dark:bg-red-950/20 dark:border-red-800' : ''}`}
                 >
                   <Heart className={`h-4 w-4 mr-2 ${stats?.user_liked ? 'fill-red-500 text-red-500' : ''}`} />
                   {stats?.user_liked ? 'تم الإعجاب' : 'إعجاب'}
                 </Button>
 
                 {stats?.download_enabled && (
-                  <Button variant="outline" onClick={handleDownloadClick}>
+                  <Button variant="outline" onClick={handleDownloadClick} className="border-border hover:bg-accent hover:text-accent-foreground">
                     <Download className="h-4 w-4 mr-2" />
                     تنزيل المشروع
                   </Button>
                 )}
 
-                <Button variant="outline" asChild>
+                <Button variant="outline" className="border-border hover:bg-accent hover:text-accent-foreground" asChild>
                   <a href={createWhatsAppLink(`مرحباً موسى، أود طلب مشروع مثل: ${project.title}`)}>
                     <MessageCircle className="h-4 w-4 mr-2" />
                     طلب مشروع مشابه
@@ -200,15 +202,15 @@ export default function ProjectView() {
           </div>
 
           {/* Live Preview */}
-          <Card>
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle>معاينة مباشرة</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-card-foreground">معاينة مباشرة</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 عرض مباشر للمشروع
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="bg-white rounded-b-lg overflow-hidden border-t" style={{ minHeight: '600px' }}>
+              <div className="bg-white dark:bg-gray-900 rounded-b-lg overflow-hidden border-t border-border" style={{ minHeight: '600px' }}>
                 <iframe
                   srcDoc={createSandboxHTML(project)}
                   className="w-full h-full border-0"

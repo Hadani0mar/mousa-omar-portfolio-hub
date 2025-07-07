@@ -22,7 +22,7 @@ export function TopNavigationBar() {
             variant="ghost"
             size="icon"
             onClick={() => navigate('/terminal')}
-            className="h-8 w-8 smooth-interaction hover:bg-accent"
+            className="h-8 w-8 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             title="الطرفية"
           >
             <Terminal className="h-4 w-4" />
@@ -34,7 +34,7 @@ export function TopNavigationBar() {
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            className="h-8 w-8 smooth-interaction hover:bg-accent"
+            className="h-8 w-8 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             title="تبديل النمط"
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

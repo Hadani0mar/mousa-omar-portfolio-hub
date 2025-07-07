@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import WebsiteShowcase from '@/components/WebsiteShowcase';
 import { TopNavigationBar } from '@/components/TopNavigationBar';
 import { AIAssistant } from '@/components/AIAssistant';
-import { ProjectSlider } from '@/components/ProjectSlider';
+import { ProjectCard } from '@/components/ProjectCard';
 
 interface Project {
   id: string;
@@ -99,7 +99,7 @@ export default function HomePage() {
           <div className="max-w-4xl mx-auto text-center">
             <div className="mb-8 animate-fade-in">
               <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center">
-                <User className="h-16 w-16 text-white" />
+                <User className="h-16 w-16 text-primary-foreground" />
               </div>
               <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
                 موسى عمر
@@ -112,12 +112,12 @@ export default function HomePage() {
             <div className="flex flex-wrap justify-center gap-4 mb-12">
               <Button
                 onClick={toggleAIChat}
-                className="github-button bg-primary hover:bg-primary/90"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 تحدث معي
               </Button>
-              <Button variant="outline" className="github-button" asChild>
+              <Button variant="outline" className="hover:bg-accent hover:text-accent-foreground" asChild>
                 <a href="#projects">
                   <Briefcase className="h-4 w-4 mr-2" />
                   أعمالي
@@ -134,7 +134,7 @@ export default function HomePage() {
                     <Badge
                       key={skill.id}
                       variant="secondary"
-                      className="smooth-interaction hover:bg-accent"
+                      className="bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                     >
                       {skill.name}
                     </Badge>
@@ -156,7 +156,11 @@ export default function HomePage() {
             </div>
 
             {featuredProjects.length > 0 ? (
-              <ProjectSlider projects={featuredProjects} />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {featuredProjects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+              </div>
             ) : (
               <div className="text-center py-16">
                 <Code className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -183,7 +187,7 @@ export default function HomePage() {
             <Button
               onClick={toggleAIChat}
               size="lg"
-              className="github-button bg-primary hover:bg-primary/90"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <MessageCircle className="h-5 w-5 mr-2" />
               ابدأ المحادثة
