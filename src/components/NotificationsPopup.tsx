@@ -1,32 +1,64 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Calendar, Clock } from 'lucide-react';
+import { Bell, X, Info, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning';
+  type: string;
   expires_at: string;
   created_at: string;
 }
 
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'success':
+      return <CheckCircle className="h-5 w-5 text-green-500" />;
+    case 'warning':
+      return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+    case 'error':
+      return <AlertCircle className="h-5 w-5 text-red-500" />;
+    default:
+      return <Info className="h-5 w-5 text-blue-500" />;
+  }
+};
+
+const getNotificationBadgeVariant = (type: string): "default" | "secondary" | "destructive" | "outline" => {
+  switch (type) {
+    case 'success':
+      return 'default';
+    case 'warning':
+      return 'secondary';
+    case 'error':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+};
+
 export default function NotificationsPopup() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadNotifications();
+    
+    // تحديث الإشعارات كل دقيقة
+    const interval = setInterval(loadNotifications, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
     try {
+      setLoading(true);
       const { data } = await supabase
         .from('notifications')
         .select('*')
@@ -35,144 +67,138 @@ export default function NotificationsPopup() {
         .limit(10);
 
       if (data) {
-        const typedNotifications = data.map(notification => ({
-          ...notification,
-          type: notification.type as 'info' | 'success' | 'warning'
-        }));
-        setNotifications(typedNotifications);
-        setUnreadCount(typedNotifications.length);
+        setNotifications(data);
       }
     } catch (error) {
       console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-500';
-      case 'warning':
-        return 'bg-yellow-500';
-      default:
-        return 'bg-blue-500';
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'success':
-        return 'نجاح';
-      case 'warning':
-        return 'تحذير';
-      default:
-        return 'معلومة';
-    }
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'الآن';
+    if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
+    if (diffInMinutes < 1440) return `منذ ${Math.floor(diffInMinutes / 60)} ساعة`;
+    return `منذ ${Math.floor(diffInMinutes / 1440)} يوم`;
   };
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative hover-scale">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="relative hover-scale bg-white/80 backdrop-blur-sm border-2 hover:border-blue-500/50 shadow-lg"
+        >
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {notifications.length > 0 && (
             <Badge 
-              className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center animate-pulse"
-              variant="destructive"
+              variant="destructive" 
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs animate-pulse"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {notifications.length > 9 ? '9+' : notifications.length}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
       
       <PopoverContent 
-        className="w-80 sm:w-96 p-0 animate-scale-in" 
+        className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] p-0 shadow-xl border-2"
         align="end"
         sideOffset={8}
       >
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold text-lg">الإشعارات</h3>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsOpen(false)}
-            className="h-6 w-6"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <ScrollArea className="max-h-96">
-          {notifications.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">
-              <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>لا توجد إشعارات جديدة</p>
-            </div>
-          ) : (
-            <div className="p-2">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="p-3 hover:bg-muted/50 rounded-lg transition-colors border-b border-muted/20 last:border-0"
+        <Card className="border-0 shadow-none">
+          <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                الإشعارات
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {notifications.length}
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsOpen(false)}
+                  className="h-8 w-8 p-0"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${getTypeColor(notification.type)}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-sm line-clamp-1">
-                          {notification.title}
-                        </h4>
-                        <Badge variant="outline" className="text-xs">
-                          {getTypeLabel(notification.type)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(notification.created_at)}
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="p-6 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-muted-foreground mt-2">جاري التحميل...</p>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-6 text-center">
+                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-sm text-muted-foreground">لا توجد إشعارات جديدة</p>
+              </div>
+            ) : (
+              <ScrollArea className="max-h-80">
+                <div className="p-2 space-y-2">
+                  {notifications.map((notification, index) => (
+                    <div
+                      key={notification.id}
+                      className="p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          {getNotificationIcon(notification.type)}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          ينتهي: {formatDate(notification.expires_at)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h4 className="font-medium text-sm truncate">{notification.title}</h4>
+                            <Badge 
+                              variant={getNotificationBadgeVariant(notification.type)}
+                              className="text-xs flex-shrink-0"
+                            >
+                              {notification.type}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(notification.created_at)}
+                          </p>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-        
-        {notifications.length > 0 && (
-          <div className="p-3 border-t">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                setUnreadCount(0);
-                setIsOpen(false);
-              }}
-            >
-              تم قراءة الكل
-            </Button>
-          </div>
-        )}
+              </ScrollArea>
+            )}
+            
+            {notifications.length > 0 && (
+              <div className="p-3 border-t bg-muted/30">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full text-sm"
+                  onClick={loadNotifications}
+                >
+                  تحديث الإشعارات
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </PopoverContent>
     </Popover>
   );

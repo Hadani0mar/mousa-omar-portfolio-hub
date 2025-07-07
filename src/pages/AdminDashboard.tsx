@@ -1,21 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, Edit, Plus, Download, Calendar, Clock, Star, Upload, Globe, Eye, Save } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { Trash2, Edit2, Plus, Globe, Settings, Code, Bell, Brain, Users } from 'lucide-react';
 import { ProjectForm } from '@/components/admin/ProjectForm';
 import { NotificationForm } from '@/components/admin/NotificationForm';
 import { SkillsManager } from '@/components/admin/SkillsManager';
-import { downloadProjectFiles } from '@/utils/projectDownloader';
-import { Label } from '@/components/ui/label';
-import WebsiteShowcase from '@/components/WebsiteShowcase';
-import NotificationsPopup from '@/components/NotificationsPopup';
 
 interface Project {
   id: string;
@@ -28,7 +25,6 @@ interface Project {
   is_featured: boolean;
   display_order: number;
   project_status: string;
-  created_at: string;
   download_count?: number;
   like_count?: number;
 }
@@ -37,360 +33,145 @@ interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning';
+  type: string;
   expires_at: string;
   created_at: string;
 }
 
-interface AIInstruction {
+interface WebsitePreview {
   id: string;
-  instruction_key: string;
-  instruction_value: string;
+  title: string;
   description: string;
+  url: string;
+  is_active: boolean;
+  display_order: number;
 }
 
-interface AdvancedSetting {
-  id: string;
-  setting_key: string;
-  setting_value: string;
-  setting_type: string;
-  description: string;
+interface AISettings {
+  system_prompt: string;
+  weekly_instructions?: string;
+  monthly_instructions?: string;
 }
 
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [aiInstructions, setAIInstructions] = useState<AIInstruction[]>([]);
-  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSetting[]>([]);
+  const [websites, setWebsites] = useState<WebsitePreview[]>([]);
+  const [aiSettings, setAiSettings] = useState<AISettings>({
+    system_prompt: '',
+    weekly_instructions: '',
+    monthly_instructions: ''
+  });
+  
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showNotificationForm, setShowNotificationForm] = useState(false);
   const [showWebsiteForm, setShowWebsiteForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [showTerminal, setShowTerminal] = useState(true);
+  const [editingWebsite, setEditingWebsite] = useState<WebsitePreview | null>(null);
+  
+  // Website form states
+  const [websiteTitle, setWebsiteTitle] = useState('');
+  const [websiteDescription, setWebsiteDescription] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  
   const { toast } = useToast();
-  const [editingAIInstruction, setEditingAIInstruction] = useState<string | null>(null);
-  const [editingAdvancedSetting, setEditingAdvancedSetting] = useState<string | null>(null);
-  const [tempValues, setTempValues] = useState<{ [key: string]: string }>({});
-
-  // Project form states
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [technologies, setTechnologies] = useState('');
-  const [htmlContent, setHtmlContent] = useState('');
-  const [cssContent, setCssContent] = useState('');
-  const [jsContent, setJsContent] = useState('');
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [displayOrder, setDisplayOrder] = useState(0);
-  const [projectStatus, setProjectStatus] = useState('active');
-
-  // Notification form states
-  const [notificationTitle, setNotificationTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const [type, setType] = useState<'info' | 'success' | 'warning'>('info');
-  const [expirationHours, setExpirationHours] = useState('24');
 
   useEffect(() => {
-    loadData();
+    loadAllData();
   }, []);
 
-  const loadData = async () => {
+  const loadAllData = async () => {
+    await Promise.all([
+      loadProjects(),
+      loadNotifications(),
+      loadWebsites(),
+      loadAISettings()
+    ]);
+  };
+
+  const loadProjects = async () => {
     try {
-      // Load projects
-      const { data: projectsData } = await supabase
+      const { data } = await supabase
         .from('projects')
         .select('*')
         .order('display_order', { ascending: true });
+      if (data) setProjects(data);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
 
-      if (projectsData) {
-        setProjects(projectsData);
-      }
-
-      // Load notifications
-      const { data: notificationsData } = await supabase
+  const loadNotifications = async () => {
+    try {
+      const { data } = await supabase
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false });
+      if (data) setNotifications(data);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
 
-      if (notificationsData) {
-        const typedNotifications = notificationsData.map(notification => ({
-          ...notification,
-          type: notification.type as 'info' | 'success' | 'warning'
-        }));
-        setNotifications(typedNotifications);
-      }
-
-      // Load AI instructions
-      const { data: aiInstructionsData } = await supabase
-        .from('ai_instructions')
+  const loadWebsites = async () => {
+    try {
+      const { data } = await supabase
+        .from('website_previews')
         .select('*')
-        .order('instruction_key', { ascending: true });
+        .order('display_order', { ascending: true });
+      if (data) setWebsites(data);
+    } catch (error) {
+      console.error('Error loading websites:', error);
+    }
+  };
 
-      if (aiInstructionsData) {
-        setAIInstructions(aiInstructionsData);
-      }
-
-      // Load advanced settings
-      const { data: advancedSettingsData } = await supabase
-        .from('advanced_settings')
-        .select('*')
-        .order('setting_key', { ascending: true });
-
-      if (advancedSettingsData) {
-        setAdvancedSettings(advancedSettingsData);
-      }
-
-      // Load site config
-      const { data: configData } = await supabase
-        .from('site_config')
+  const loadAISettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('ai_model_settings')
         .select('*')
         .single();
-
-      if (configData) {
-        setShowTerminal(configData.show_terminal);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  };
-
-  const updateTerminalSetting = async (value: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('site_config')
-        .update({ show_terminal: value })
-        .eq('id', 1);
-
-      if (error) throw error;
-
-      setShowTerminal(value);
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث إعدادات Terminal بنجاح",
-      });
-    } catch (error) {
-      console.error('Error updating terminal setting:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الإعدادات",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const projectData = {
-        title,
-        description,
-        technologies: technologies.split(',').map(t => t.trim()).filter(t => t),
-        html_content: htmlContent,
-        css_content: cssContent,
-        js_content: jsContent,
-        is_featured: isFeatured,
-        display_order: displayOrder,
-        project_status: projectStatus,
-      };
-
-      if (editingProject) {
-        const { error } = await supabase
-          .from('projects')
-          .update(projectData)
-          .eq('id', editingProject.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "تم التحديث",
-          description: "تم تحديث المشروع بنجاح",
-        });
-      } else {
-        const { error } = await supabase
-          .from('projects')
-          .insert([projectData]);
-
-        if (error) throw error;
-
-        toast({
-          title: "تم النشر",
-          description: "تم نشر المشروع بنجاح",
+      
+      if (data) {
+        setAiSettings({
+          system_prompt: data.system_prompt || '',
+          weekly_instructions: data.weekly_instructions || '',
+          monthly_instructions: data.monthly_instructions || ''
         });
       }
-
-      resetProjectForm();
-      loadData();
     } catch (error) {
-      console.error('Error saving project:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حفظ المشروع",
-        variant: "destructive",
-      });
+      console.error('Error loading AI settings:', error);
     }
   };
 
-  const handleNotificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const saveAISettings = async () => {
     try {
-      const hoursToAdd = parseInt(expirationHours);
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + hoursToAdd);
-
       const { error } = await supabase
-        .from('notifications')
-        .insert([{
-          title: notificationTitle,
-          message,
-          type,
-          expires_at: expiresAt.toISOString(),
-        }]);
+        .from('ai_model_settings')
+        .upsert({
+          system_prompt: aiSettings.system_prompt,
+          weekly_instructions: aiSettings.weekly_instructions,
+          monthly_instructions: aiSettings.monthly_instructions,
+          updated_at: new Date().toISOString()
+        });
 
       if (error) throw error;
 
       toast({
-        title: "تم النشر",
-        description: "تم نشر التحديث بنجاح",
+        title: "تم الحفظ",
+        description: "تم حفظ إعدادات الذكاء الاصطناعي بنجاح",
       });
-
-      // Reset form
-      setNotificationTitle('');
-      setMessage('');
-      setType('info');
-      setExpirationHours('24');
-      setShowNotificationForm(false);
-      loadData();
     } catch (error) {
-      console.error('Error creating notification:', error);
+      console.error('Error saving AI settings:', error);
       toast({
         title: "خطأ",
-        description: "فشل في نشر التحديث",
+        description: "فشل في حفظ الإعدادات",
         variant: "destructive",
       });
     }
-  };
-
-  const deleteNotification = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا التحديث؟')) return;
-
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم الحذف",
-        description: "تم حذف التحديث بنجاح",
-      });
-      loadData();
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في حذف التحديث",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const updateAIInstruction = async (id: string, value: string) => {
-    try {
-      const { error } = await supabase
-        .from('ai_instructions')
-        .update({ instruction_value: value })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث تعليمة الذكاء الاصطناعي بنجاح",
-      });
-
-      setEditingAIInstruction(null);
-      loadData();
-    } catch (error) {
-      console.error('Error updating AI instruction:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث التعليمة",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const updateAdvancedSetting = async (id: string, value: string) => {
-    try {
-      const { error } = await supabase
-        .from('advanced_settings')
-        .update({ setting_value: value })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث الإعداد بنجاح",
-      });
-
-      setEditingAdvancedSetting(null);
-      loadData();
-    } catch (error) {
-      console.error('Error updating advanced setting:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الإعداد",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      year: 'numeric',
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const resetProjectForm = () => {
-    setTitle('');
-    setDescription('');
-    setTechnologies('');
-    setHtmlContent('');
-    setCssContent('');
-    setJsContent('');
-    setIsFeatured(false);
-    setDisplayOrder(0);
-    setProjectStatus('active');
-    setEditingProject(null);
-    setShowProjectForm(false);
-  };
-
-  const handleEditProject = (project: Project) => {
-    setTitle(project.title);
-    setDescription(project.description);
-    setTechnologies(project.technologies.join(', '));
-    setHtmlContent(project.html_content);
-    setCssContent(project.css_content || '');
-    setJsContent(project.js_content || '');
-    setIsFeatured(project.is_featured);
-    setDisplayOrder(project.display_order);
-    setProjectStatus(project.project_status);
-    setEditingProject(project);
-    setShowProjectForm(true);
   };
 
   const deleteProject = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المشروع؟')) return;
-
     try {
       const { error } = await supabase
         .from('projects')
@@ -399,11 +180,11 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
+      setProjects(projects.filter(p => p.id !== id));
       toast({
         title: "تم الحذف",
         description: "تم حذف المشروع بنجاح",
       });
-      loadData();
     } catch (error) {
       console.error('Error deleting project:', error);
       toast({
@@ -414,387 +195,473 @@ export default function AdminDashboard() {
     }
   };
 
+  const deleteNotification = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setNotifications(notifications.filter(n => n.id !== id));
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الإشعار بنجاح",
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف الإشعار",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleWebsiteSubmit = async () => {
+    try {
+      const websiteData = {
+        title: websiteTitle,
+        description: websiteDescription,
+        url: websiteUrl,
+        is_active: true,
+        display_order: websites.length
+      };
+
+      if (editingWebsite) {
+        const { error } = await supabase
+          .from('website_previews')
+          .update(websiteData)
+          .eq('id', editingWebsite.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('website_previews')
+          .insert([websiteData]);
+
+        if (error) throw error;
+      }
+
+      await loadWebsites();
+      resetWebsiteForm();
+      toast({
+        title: "تم الحفظ",
+        description: editingWebsite ? "تم تحديث الموقع" : "تم إضافة الموقع",
+      });
+    } catch (error) {
+      console.error('Error saving website:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حفظ الموقع",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteWebsite = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('website_previews')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadWebsites();
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الموقع بنجاح",
+      });
+    } catch (error) {
+      console.error('Error deleting website:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف الموقع",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const editWebsite = (website: WebsitePreview) => {
+    setEditingWebsite(website);
+    setWebsiteTitle(website.title);
+    setWebsiteDescription(website.description);
+    setWebsiteUrl(website.url);
+    setShowWebsiteForm(true);
+  };
+
+  const resetWebsiteForm = () => {
+    setShowWebsiteForm(false);
+    setEditingWebsite(null);
+    setWebsiteTitle('');
+    setWebsiteDescription('');
+    setWebsiteUrl('');
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">لوحة الإدارة</h1>
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="terminal-toggle">إظهار Terminal</Label>
-          <Switch
-            id="terminal-toggle"
-            checked={showTerminal}
-            onCheckedChange={updateTerminalSetting}
-          />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-900 p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            لوحة التحكم
+          </h1>
+          <p className="text-muted-foreground text-lg">إدارة المحتوى والإعدادات</p>
         </div>
-      </div>
 
-      <Tabs defaultValue="projects" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="projects">المشاريع</TabsTrigger>
-          <TabsTrigger value="notifications">التحديثات</TabsTrigger>
-          <TabsTrigger value="websites">المواقع</TabsTrigger>
-          <TabsTrigger value="skills">المهارات</TabsTrigger>
-          <TabsTrigger value="ai">تعليمات AI</TabsTrigger>
-          <TabsTrigger value="settings">الإعدادات</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="projects" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 bg-white/50 backdrop-blur-sm">
+            <TabsTrigger value="projects" className="flex items-center gap-2">
+              <Code className="h-4 w-4" />
+              المشاريع
+            </TabsTrigger>
+            <TabsTrigger value="websites" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              المواقع
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              الإشعارات
+            </TabsTrigger>
+            <TabsTrigger value="skills" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              المهارات
+            </TabsTrigger>
+            <TabsTrigger value="ai-settings" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              إعدادات AI
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              الإعدادات
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="projects" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">إدارة المشاريع</h2>
-            <Button onClick={() => setShowProjectForm(!showProjectForm)} className="hover-scale">
-              <Plus className="h-4 w-4 mr-2" />
-              إضافة مشروع جديد
-            </Button>
-          </div>
+          {/* Projects Tab */}
+          <TabsContent value="projects" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">إدارة المشاريع</h2>
+              <Button 
+                onClick={() => setShowProjectForm(true)}
+                className="bg-gradient-to-r from-blue-600 to-purple-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                إضافة مشروع
+              </Button>
+            </div>
 
-          <ProjectForm
-            showForm={showProjectForm}
-            editingProject={!!editingProject}
-            title={title}
-            setTitle={setTitle}
-            description={description}
-            setDescription={setDescription}
-            technologies={technologies}
-            setTechnologies={setTechnologies}
-            htmlContent={htmlContent}
-            setHtmlContent={setHtmlContent}
-            cssContent={cssContent}
-            setCssContent={setCssContent}
-            jsContent={jsContent}
-            setJsContent={setJsContent}
-            isFeatured={isFeatured}
-            setIsFeatured={setIsFeatured}
-            displayOrder={displayOrder}
-            setDisplayOrder={setDisplayOrder}
-            projectStatus={projectStatus}
-            setProjectStatus={setProjectStatus}
-            onSubmit={handleProjectSubmit}
-            onCancel={resetProjectForm}
-          />
-
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg line-clamp-1">{project.title}</CardTitle>
-                    {project.is_featured && (
-                      <Badge className="bg-yellow-500"><Star className="h-3 w-3" /></Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-1">
-                    {project.technologies.slice(0, 3).map((tech) => (
-                      <Badge key={tech} variant="outline" className="text-xs">{tech}</Badge>
-                    ))}
-                    {project.technologies.length > 3 && (
-                      <Badge variant="outline" className="text-xs">+{project.technologies.length - 3}</Badge>
-                    )}
-                  </div>
-                  
-                  <div className="text-xs text-muted-foreground">
-                    <div className="flex items-center gap-4">
-                      <span>التنزيلات: {project.download_count || 0}</span>
-                      <span>الإعجابات: {project.like_count || 0}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <Card key={project.id} className="hover:shadow-lg transition-all">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg">{project.title}</CardTitle>
+                      {project.is_featured && (
+                        <Badge variant="default">مميز</Badge>
+                      )}
                     </div>
-                    <div className="mt-1">
-                      تاريخ الإنشاء: {formatDate(project.created_at)}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => downloadProjectFiles(project)} className="hover-scale">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="hover-scale">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteProject(project.id)} className="hover-scale">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="notifications" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">إدارة التحديثات</h2>
-            <Button onClick={() => setShowNotificationForm(!showNotificationForm)} className="hover-scale">
-              <Plus className="h-4 w-4 mr-2" />
-              إضافة تحديث جديد
-            </Button>
-          </div>
-
-          <NotificationForm
-            showForm={showNotificationForm}
-            title={notificationTitle}
-            setTitle={setNotificationTitle}
-            message={message}
-            setMessage={setMessage}
-            type={type}
-            setType={setType}
-            expirationHours={expirationHours}
-            setExpirationHours={setExpirationHours}
-            onSubmit={handleNotificationSubmit}
-            onCancel={() => setShowNotificationForm(false)}
-          />
-
-          <div className="space-y-4">
-            {notifications.map((notification) => (
-              <Card key={notification.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold">{notification.title}</h3>
-                        <Badge 
-                          variant={
-                            notification.type === 'success' ? 'default' : 
-                            notification.type === 'warning' ? 'destructive' : 
-                            'secondary'
-                          }
-                        >
-                          {notification.type === 'info' ? 'معلومة' : notification.type === 'success' ? 'نجاح' : 'تحذير'}
+                    <CardDescription className="line-clamp-2">
+                      {project.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {project.technologies.slice(0, 3).map((tech) => (
+                        <Badge key={tech} variant="outline" className="text-xs">
+                          {tech}
                         </Badge>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center text-sm text-muted-foreground mb-4">
+                      <span>تحميلات: {project.download_count || 0}</span>
+                      <span>إعجابات: {project.like_count || 0}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingProject(project);
+                          setShowProjectForm(true);
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteProject(project.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {showProjectForm && (
+              <ProjectForm
+                showForm={showProjectForm}
+                editingProject={editingProject}
+                onCancel={() => {
+                  setShowProjectForm(false);
+                  setEditingProject(null);
+                }}
+                onSave={loadProjects}
+              />
+            )}
+          </TabsContent>
+
+          {/* Websites Tab */}
+          <TabsContent value="websites" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">إدارة المواقع المنشورة</h2>
+              <Button 
+                onClick={() => setShowWebsiteForm(true)}
+                className="bg-gradient-to-r from-green-600 to-blue-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                إضافة موقع
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {websites.map((website) => (
+                <Card key={website.id} className="hover:shadow-lg transition-all">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Globe className="h-5 w-5" />
+                      {website.title}
+                    </CardTitle>
+                    <CardDescription>{website.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="text-sm text-muted-foreground">
+                        <strong>الرابط:</strong> {website.url}
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap break-words">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          تاريخ النشر: {formatDate(notification.created_at)}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          ينتهي في: {formatDate(notification.expires_at)}
-                        </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => editWebsite(website)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteWebsite(website.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={website.url} target="_blank" rel="noopener noreferrer">
+                            <Globe className="h-4 w-4" />
+                          </a>
+                        </Button>
                       </div>
                     </div>
-                    <Button size="sm" variant="destructive" onClick={() => deleteNotification(notification.id)}>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {showWebsiteForm && (
+              <Card className="max-w-md mx-auto">
+                <CardHeader>
+                  <CardTitle>
+                    {editingWebsite ? 'تعديل الموقع' : 'إضافة موقع جديد'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="website-title">عنوان الموقع</Label>
+                    <Input
+                      id="website-title"
+                      value={websiteTitle}
+                      onChange={(e) => setWebsiteTitle(e.target.value)}
+                      placeholder="اسم الموقع"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="website-description">الوصف</Label>
+                    <Textarea
+                      id="website-description"
+                      value={websiteDescription}
+                      onChange={(e) => setWebsiteDescription(e.target.value)}
+                      placeholder="وصف مختصر للموقع"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="website-url">رابط الموقع</Label>
+                    <Input
+                      id="website-url"
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://example.com"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleWebsiteSubmit} className="flex-1">
+                      {editingWebsite ? 'حفظ التغييرات' : 'إضافة الموقع'}
+                    </Button>
+                    <Button variant="outline" onClick={resetWebsiteForm}>
+                      إلغاء
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">إدارة الإشعارات</h2>
+              <Button 
+                onClick={() => setShowNotificationForm(true)}
+                className="bg-gradient-to-r from-orange-600 to-red-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                إضافة إشعار
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {notifications.map((notification) => (
+                <Card key={notification.id} className="hover:shadow-lg transition-all">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg">{notification.title}</CardTitle>
+                      <Badge variant={
+                        notification.type === 'success' ? 'default' :
+                        notification.type === 'warning' ? 'secondary' :
+                        notification.type === 'error' ? 'destructive' : 'outline'
+                      }>
+                        {notification.type}
+                      </Badge>
+                    </div>
+                    <CardDescription>{notification.message}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-center text-sm text-muted-foreground mb-4">
+                      <span>ينتهي: {new Date(notification.expires_at).toLocaleDateString('ar')}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteNotification(notification.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-        <TabsContent value="websites" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">إدارة المواقع</h2>
-            <Button onClick={() => setShowWebsiteForm(!showWebsiteForm)} className="hover-scale">
-              <Plus className="h-4 w-4 mr-2" />
-              إضافة موقع جديد
-            </Button>
-          </div>
+            {showNotificationForm && (
+              <NotificationForm
+                showForm={showNotificationForm}
+                onCancel={() => setShowNotificationForm(false)}
+                onSave={loadNotifications}
+              />
+            )}
+          </TabsContent>
 
-          <WebsiteShowcase />
-        </TabsContent>
+          {/* Skills Tab */}
+          <TabsContent value="skills">
+            <SkillsManager />
+          </TabsContent>
 
-        <TabsContent value="skills">
-          <SkillsManager />
-        </TabsContent>
-
-        <TabsContent value="ai" className="space-y-6">
-          <h2 className="text-2xl font-bold">تعليمات الذكاء الاصطناعي</h2>
-          <div className="space-y-4">
-            {aiInstructions.map((instruction) => (
-              <Card key={instruction.id}>
+          {/* AI Settings Tab */}
+          <TabsContent value="ai-settings" className="space-y-6">
+            <div className="max-w-2xl mx-auto">
+              <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{instruction.instruction_key}</CardTitle>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        if (editingAIInstruction === instruction.id) {
-                          updateAIInstruction(instruction.id, tempValues[instruction.id] || instruction.instruction_value);
-                        } else {
-                          setEditingAIInstruction(instruction.id);
-                          setTempValues(prev => ({
-                            ...prev,
-                            [instruction.id]: instruction.instruction_value
-                          }));
-                        }
-                      }}
-                    >
-                      {editingAIInstruction === instruction.id ? (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          حفظ
-                        </>
-                      ) : (
-                        <>
-                          <Edit className="h-4 w-4 mr-2" />
-                          تعديل
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {instruction.description && (
-                    <p className="text-sm text-muted-foreground">{instruction.description}</p>
-                  )}
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-5 w-5" />
+                    إعدادات الذكاء الاصطناعي
+                  </CardTitle>
+                  <CardDescription>
+                    تخصيص سلوك وتعليمات الذكاء الاصطناعي
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  {editingAIInstruction === instruction.id ? (
-                    <div className="space-y-3">
-                      <Textarea
-                        value={tempValues[instruction.id] || instruction.instruction_value}
-                        onChange={(e) => setTempValues(prev => ({
-                          ...prev,
-                          [instruction.id]: e.target.value
-                        }))}
-                        rows={6}
-                        className="resize-none"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => updateAIInstruction(instruction.id, tempValues[instruction.id] || instruction.instruction_value)}
-                        >
-                          حفظ التغييرات
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingAIInstruction(null);
-                            setTempValues(prev => {
-                              const { [instruction.id]: _, ...rest } = prev;
-                              return rest;
-                            });
-                          }}
-                        >
-                          إلغاء
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                      {instruction.instruction_value}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+                <CardContent className="space-y-6">
+                  <div>
+                    <Label htmlFor="system-prompt">التعليمات الأساسية للنظام</Label>
+                    <Textarea
+                      id="system-prompt"
+                      value={aiSettings.system_prompt}
+                      onChange={(e) => setAiSettings({
+                        ...aiSettings,
+                        system_prompt: e.target.value
+                      })}
+                      placeholder="أدخل التعليمات الأساسية للذكاء الاصطناعي..."
+                      className="min-h-[120px]"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="weekly-instructions">التعليمات الأسبوعية</Label>
+                    <Textarea
+                      id="weekly-instructions"
+                      value={aiSettings.weekly_instructions || ''}
+                      onChange={(e) => setAiSettings({
+                        ...aiSettings,
+                        weekly_instructions: e.target.value
+                      })}
+                      placeholder="تعليمات خاصة لهذا الأسبوع..."
+                      className="min-h-[80px]"
+                    />
+                  </div>
 
-        <TabsContent value="settings" className="space-y-6">
-          <h2 className="text-2xl font-bold">الإعدادات المتقدمة</h2>
-          <div className="space-y-4">
-            {advancedSettings.map((setting) => (
-              <Card key={setting.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{setting.setting_key}</CardTitle>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        if (editingAdvancedSetting === setting.id) {
-                          updateAdvancedSetting(setting.id, tempValues[setting.id] || setting.setting_value);
-                        } else {
-                          setEditingAdvancedSetting(setting.id);
-                          setTempValues(prev => ({
-                            ...prev,
-                            [setting.id]: setting.setting_value
-                          }));
-                        }
-                      }}
-                    >
-                      {editingAdvancedSetting === setting.id ? (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          حفظ
-                        </>
-                      ) : (
-                        <>
-                          <Edit className="h-4 w-4 mr-2" />
-                          تعديل
-                        </>
-                      )}
-                    </Button>
+                  <div>
+                    <Label htmlFor="monthly-instructions">التعليمات الشهرية</Label>
+                    <Textarea
+                      id="monthly-instructions"
+                      value={aiSettings.monthly_instructions || ''}
+                      onChange={(e) => setAiSettings({
+                        ...aiSettings,
+                        monthly_instructions: e.target.value
+                      })}
+                      placeholder="تعليمات خاصة لهذا الشهر..."
+                      className="min-h-[80px]"
+                    />
                   </div>
-                  {setting.description && (
-                    <p className="text-sm text-muted-foreground">{setting.description}</p>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {editingAdvancedSetting === setting.id ? (
-                    <div className="space-y-3">
-                      {setting.setting_type === 'boolean' ? (
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={tempValues[setting.id] === 'true'}
-                            onCheckedChange={(checked) => setTempValues(prev => ({
-                              ...prev,
-                              [setting.id]: checked.toString()
-                            }))}
-                          />
-                          <Label>تفعيل/إلغاء تفعيل</Label>
-                        </div>
-                      ) : setting.setting_type === 'number' ? (
-                        <Input
-                          type="number"
-                          value={tempValues[setting.id] || setting.setting_value}
-                          onChange={(e) => setTempValues(prev => ({
-                            ...prev,
-                            [setting.id]: e.target.value
-                          }))}
-                        />
-                      ) : (
-                        <Textarea
-                          value={tempValues[setting.id] || setting.setting_value}
-                          onChange={(e) => setTempValues(prev => ({
-                            ...prev,
-                            [setting.id]: e.target.value
-                          }))}
-                          rows={3}
-                        />
-                      )}
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => updateAdvancedSetting(setting.id, tempValues[setting.id] || setting.setting_value)}
-                        >
-                          حفظ التغييرات
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingAdvancedSetting(null);
-                            setTempValues(prev => {
-                              const { [setting.id]: _, ...rest } = prev;
-                              return rest;
-                            });
-                          }}
-                        >
-                          إلغاء
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{setting.setting_type}</Badge>
-                      <span className="text-sm">{setting.setting_value}</span>
-                    </div>
-                  )}
+
+                  <Button 
+                    onClick={saveAISettings}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
+                  >
+                    حفظ إعدادات الذكاء الاصطناعي
+                  </Button>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+            </div>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>إعدادات عامة</CardTitle>
+                <CardDescription>إعدادات الموقع العامة</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">قريباً...</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
