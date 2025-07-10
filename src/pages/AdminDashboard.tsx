@@ -19,6 +19,26 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Project form state
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [technologies, setTechnologies] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
+  const [cssContent, setCssContent] = useState('');
+  const [jsContent, setJsContent] = useState('');
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [displayOrder, setDisplayOrder] = useState(0);
+  const [projectStatus, setProjectStatus] = useState('active');
+
+  // Notification form state
+  const [showNotificationForm, setShowNotificationForm] = useState(false);
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'info' | 'success' | 'warning'>('info');
+  const [expirationHours, setExpirationHours] = useState('24');
+
   useEffect(() => {
     checkUser();
   }, []);
@@ -55,6 +75,114 @@ export default function AdminDashboard() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const projectData = {
+        title,
+        description,
+        technologies: technologies.split(',').map(t => t.trim()),
+        html_content: htmlContent,
+        css_content: cssContent,
+        js_content: jsContent,
+        is_featured: isFeatured,
+        display_order: displayOrder,
+        project_status: projectStatus,
+        is_template: false
+      };
+
+      const { error } = await supabase
+        .from('projects')
+        .insert([projectData]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'نجح',
+        description: 'تم حفظ المشروع بنجاح',
+      });
+
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setTechnologies('');
+      setHtmlContent('');
+      setCssContent('');
+      setJsContent('');
+      setIsFeatured(false);
+      setDisplayOrder(0);
+      setProjectStatus('active');
+      setShowProjectForm(false);
+    } catch (error) {
+      console.error('Error saving project:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في حفظ المشروع',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleNotificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const expirationDate = new Date();
+      expirationDate.setHours(expirationDate.getHours() + parseInt(expirationHours));
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert([{
+          title: notificationTitle,
+          message: notificationMessage,
+          type: notificationType,
+          expires_at: expirationDate.toISOString()
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'نجح',
+        description: 'تم نشر التحديث بنجاح',
+      });
+
+      // Reset form
+      setNotificationTitle('');
+      setNotificationMessage('');
+      setNotificationType('info');
+      setExpirationHours('24');
+      setShowNotificationForm(false);
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في نشر التحديث',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleProjectCancel = () => {
+    setShowProjectForm(false);
+    setEditingProject(false);
+    setTitle('');
+    setDescription('');
+    setTechnologies('');
+    setHtmlContent('');
+    setCssContent('');
+    setJsContent('');
+    setIsFeatured(false);
+    setDisplayOrder(0);
+    setProjectStatus('active');
+  };
+
+  const handleNotificationCancel = () => {
+    setShowNotificationForm(false);
+    setNotificationTitle('');
+    setNotificationMessage('');
+    setNotificationType('info');
+    setExpirationHours('24');
   };
 
   if (loading) {
@@ -169,9 +297,35 @@ export default function AdminDashboard() {
                   <CardDescription>
                     إضافة وتعديل وحذف المشاريع المعروضة في الموقع
                   </CardDescription>
+                  <Button onClick={() => setShowProjectForm(true)}>
+                    إضافة مشروع جديد
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <ProjectForm />
+                  <ProjectForm
+                    showForm={showProjectForm}
+                    editingProject={editingProject}
+                    title={title}
+                    setTitle={setTitle}
+                    description={description}
+                    setDescription={setDescription}
+                    technologies={technologies}
+                    setTechnologies={setTechnologies}
+                    htmlContent={htmlContent}
+                    setHtmlContent={setHtmlContent}
+                    cssContent={cssContent}
+                    setCssContent={setCssContent}
+                    jsContent={jsContent}
+                    setJsContent={setJsContent}
+                    isFeatured={isFeatured}
+                    setIsFeatured={setIsFeatured}
+                    displayOrder={displayOrder}
+                    setDisplayOrder={setDisplayOrder}
+                    projectStatus={projectStatus}
+                    setProjectStatus={setProjectStatus}
+                    onSubmit={handleProjectSubmit}
+                    onCancel={handleProjectCancel}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -201,9 +355,24 @@ export default function AdminDashboard() {
                   <CardDescription>
                     إنشاء وإدارة الإشعارات المعروضة للزوار
                   </CardDescription>
+                  <Button onClick={() => setShowNotificationForm(true)}>
+                    إضافة إشعار جديد
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <NotificationForm />
+                  <NotificationForm
+                    showForm={showNotificationForm}
+                    title={notificationTitle}
+                    setTitle={setNotificationTitle}
+                    message={notificationMessage}
+                    setMessage={setNotificationMessage}
+                    type={notificationType}
+                    setType={setNotificationType}
+                    expirationHours={expirationHours}
+                    setExpirationHours={setExpirationHours}
+                    onSubmit={handleNotificationSubmit}
+                    onCancel={handleNotificationCancel}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
