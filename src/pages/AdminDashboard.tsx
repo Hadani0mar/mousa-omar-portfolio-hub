@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,14 +9,32 @@ import { ProjectForm } from '@/components/admin/ProjectForm';
 import { NotificationForm } from '@/components/admin/NotificationForm';
 import { SkillsManager } from '@/components/admin/SkillsManager';
 import { TemplatesManager } from '@/components/admin/TemplatesManager';
+import { WebsiteManager } from '@/components/admin/WebsiteManager';
 import { TopNavigationBar } from '@/components/TopNavigationBar';
 import { useToast } from '@/hooks/use-toast';
+
+interface Statistics {
+  projectsCount: number;
+  templatesCount: number;
+  websitesCount: number;
+  notificationsCount: number;
+  totalLikes: number;
+  totalDownloads: number;
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [statistics, setStatistics] = useState<Statistics>({
+    projectsCount: 0,
+    templatesCount: 0,
+    websitesCount: 0,
+    notificationsCount: 0,
+    totalLikes: 0,
+    totalDownloads: 0,
+  });
 
   // Project form state
   const [showProjectForm, setShowProjectForm] = useState(false);
@@ -41,6 +58,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     checkUser();
+    loadStatistics();
   }, []);
 
   const checkUser = async () => {
@@ -56,6 +74,46 @@ export default function AdminDashboard() {
       navigate('/admin');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStatistics = async () => {
+    try {
+      // جلب إحصائيات المشاريع
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('*');
+
+      // حساب المشاريع العادية والقوالب
+      const regularProjects = projects?.filter(p => !p.is_template) || [];
+      const templates = projects?.filter(p => p.is_template) || [];
+
+      // حساب إجمالي الإعجابات والتنزيلات
+      const totalLikes = projects?.reduce((sum, p) => sum + (p.like_count || 0), 0) || 0;
+      const totalDownloads = projects?.reduce((sum, p) => sum + (p.download_count || 0), 0) || 0;
+
+      // جلب عدد المواقع المنشورة
+      const { data: websites } = await supabase
+        .from('website_previews')
+        .select('id')
+        .eq('is_active', true);
+
+      // جلب عدد الإشعارات النشطة
+      const { data: notifications } = await supabase
+        .from('notifications')
+        .select('id')
+        .gt('expires_at', new Date().toISOString());
+
+      setStatistics({
+        projectsCount: regularProjects.length,
+        templatesCount: templates.length,
+        websitesCount: websites?.length || 0,
+        notificationsCount: notifications?.length || 0,
+        totalLikes,
+        totalDownloads,
+      });
+    } catch (error) {
+      console.error('Error loading statistics:', error);
     }
   };
 
@@ -104,17 +162,8 @@ export default function AdminDashboard() {
         description: 'تم حفظ المشروع بنجاح',
       });
 
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setTechnologies('');
-      setHtmlContent('');
-      setCssContent('');
-      setJsContent('');
-      setIsFeatured(false);
-      setDisplayOrder(0);
-      setProjectStatus('active');
-      setShowProjectForm(false);
+      handleProjectCancel();
+      loadStatistics();
     } catch (error) {
       console.error('Error saving project:', error);
       toast({
@@ -147,12 +196,8 @@ export default function AdminDashboard() {
         description: 'تم نشر التحديث بنجاح',
       });
 
-      // Reset form
-      setNotificationTitle('');
-      setNotificationMessage('');
-      setNotificationType('info');
-      setExpirationHours('24');
-      setShowNotificationForm(false);
+      handleNotificationCancel();
+      loadStatistics();
     } catch (error) {
       console.error('Error creating notification:', error);
       toast({
@@ -243,15 +288,15 @@ export default function AdminDashboard() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">إجمالي المشاريع</CardTitle>
                     <Code className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">--</div>
-                    <p className="text-xs text-muted-foreground">جميع المشاريع المنشورة</p>
+                    <div className="text-2xl font-bold">{statistics.projectsCount}</div>
+                    <p className="text-xs text-muted-foreground">المشاريع العادية المنشورة</p>
                   </CardContent>
                 </Card>
 
@@ -261,7 +306,7 @@ export default function AdminDashboard() {
                     <Package className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">--</div>
+                    <div className="text-2xl font-bold">{statistics.templatesCount}</div>
                     <p className="text-xs text-muted-foreground">القوالب المتاحة للبيع</p>
                   </CardContent>
                 </Card>
@@ -272,7 +317,7 @@ export default function AdminDashboard() {
                     <Globe className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">--</div>
+                    <div className="text-2xl font-bold">{statistics.websitesCount}</div>
                     <p className="text-xs text-muted-foreground">المواقع النشطة</p>
                   </CardContent>
                 </Card>
@@ -283,8 +328,30 @@ export default function AdminDashboard() {
                     <Bell className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">--</div>
-                    <p className="text-xs text-muted-foreground">الإشعارات المعروضة</p>
+                    <div className="text-2xl font-bold">{statistics.notificationsCount}</div>
+                    <p className="text-xs text-muted-foreground">الإشعارات المعروضة حالياً</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">إجمالي الإعجابات</CardTitle>
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{statistics.totalLikes}</div>
+                    <p className="text-xs text-muted-foreground">على جميع المشاريع والقوالب</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">إجمالي التنزيلات</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{statistics.totalDownloads}</div>
+                    <p className="text-xs text-muted-foreground">للمشاريع والقوالب</p>
                   </CardContent>
                 </Card>
               </div>
@@ -335,17 +402,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             <TabsContent value="websites">
-              <Card>
-                <CardHeader>
-                  <CardTitle>إدارة المواقع المنشورة</CardTitle>
-                  <CardDescription>
-                    إضافة وتعديل المواقع المعروضة في قسم المواقع المنشورة
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">قريباً...</p>
-                </CardContent>
-              </Card>
+              <WebsiteManager />
             </TabsContent>
 
             <TabsContent value="notifications">
