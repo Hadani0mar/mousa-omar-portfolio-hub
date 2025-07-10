@@ -1,23 +1,25 @@
-
-# Robots.txt for m0usa.ly
+# robots.txt for m0usa.ly
 # موقع موسى عمر - مطور مواقع ليبي
 
 User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /api/
-Disallow: /*.json$
+# لو تبي ملفات الـ JSON تظهر في البحث، شيل السطر هادا:
+# Disallow: /*.json$
 
 # Search Engine Bots
 User-agent: Googlebot
 Allow: /
 Disallow: /admin/
-Crawl-delay: 1
+# لو تبي جوجل يفهرس موقعك أسرع، شيل السطر هادا:
+# Crawl-delay: 1
 
 User-agent: Bingbot
 Allow: /
 Disallow: /admin/
-Crawl-delay: 1
+# لو تبي بينج يفهرس موقعك أسرع، شيل السطر هادا:
+# Crawl-delay: 1
 
 User-agent: Slurp
 Allow: /
@@ -48,9 +50,4 @@ Allow: /
 User-agent: WhatsApp
 Allow: /
 
-# Sitemap Location
 Sitemap: https://www.m0usa.ly/sitemap.xml
-
-# Host
-Host: https://www.m0usa.ly
-
