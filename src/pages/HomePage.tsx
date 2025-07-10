@@ -8,20 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import WebsiteShowcase from '@/components/WebsiteShowcase';
 import { TopNavigationBar } from '@/components/TopNavigationBar';
 import { AIAssistant } from '@/components/AIAssistant';
-import { ProjectCard } from '@/components/ProjectCard';
-
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  technologies: string[];
-  html_content: string;
-  css_content?: string;
-  js_content?: string;
-  is_featured: boolean;
-  like_count: number;
-  download_count: number;
-}
+import { TemplatesSection } from '@/components/TemplatesSection';
 
 interface Skill {
   id: string;
@@ -30,32 +17,12 @@ interface Skill {
 }
 
 export default function HomePage() {
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [showAIChat, setShowAIChat] = useState(false);
 
   useEffect(() => {
-    loadFeaturedProjects();
     loadSkills();
   }, []);
-
-  const loadFeaturedProjects = async () => {
-    try {
-      const { data } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('is_featured', true)
-        .eq('project_status', 'active')
-        .order('display_order', { ascending: true })
-        .limit(6);
-
-      if (data) {
-        setFeaturedProjects(data);
-      }
-    } catch (error) {
-      console.error('Error loading featured projects:', error);
-    }
-  };
 
   const loadSkills = async () => {
     try {
@@ -97,7 +64,7 @@ export default function HomePage() {
         {/* Hero Section */}
         <section className="py-20 px-4">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="mb-8 animate-fade-in">
+            <div className="mb-8">
               <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center">
                 <User className="h-16 w-16 text-primary-foreground" />
               </div>
@@ -118,16 +85,16 @@ export default function HomePage() {
                 تحدث معي
               </Button>
               <Button variant="outline" className="hover:bg-accent hover:text-accent-foreground" asChild>
-                <a href="#projects">
+                <a href="#templates">
                   <Briefcase className="h-4 w-4 mr-2" />
-                  أعمالي
+                  القوالب الجاهزة
                 </a>
               </Button>
             </div>
 
             {/* Skills */}
             {skills.length > 0 && (
-              <div className="animate-slide-up">
+              <div>
                 <h3 className="text-lg font-semibold mb-4 text-foreground">المهارات التقنية</h3>
                 <div className="flex flex-wrap justify-center gap-2">
                   {skills.map((skill) => (
@@ -145,28 +112,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Featured Projects */}
-        <section id="projects" className="py-16 px-4 bg-muted/30">
+        {/* Templates Section */}
+        <section id="templates" className="py-16 px-4 bg-muted/30">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-foreground mb-4">المشاريع المميزة</h2>
-              <p className="text-muted-foreground">
-                مجموعة من أحدث أعمالي في تطوير الواجهات الأمامية
-              </p>
-            </div>
-
-            {featuredProjects.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featuredProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <Code className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">لا توجد مشاريع مميزة حالياً</p>
-              </div>
-            )}
+            <TemplatesSection />
           </div>
         </section>
 
