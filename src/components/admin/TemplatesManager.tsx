@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,9 +48,9 @@ export const TemplatesManager: React.FC = () => {
   const [templateCategory, setTemplateCategory] = useState('');
   const [templatePrice, setTemplatePrice] = useState(0);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [htmlContent, setHtmlContent] = useState('');
-  const [cssContent, setCssContent] = useState('');
-  const [jsContent, setJsContent] = useState('');
+  const [htmlContent, setHtmlContent] = useState('<!DOCTYPE html>\n<html>\n<head>\n    <title>القالب الجديد</title>\n</head>\n<body>\n    <h1>مرحباً بالقالب الجديد</h1>\n</body>\n</html>');
+  const [cssContent, setCssContent] = useState('/* أضف CSS هنا */');
+  const [jsContent, setJsContent] = useState('// أضف JavaScript هنا');
   const [displayOrder, setDisplayOrder] = useState(0);
   const [projectStatus, setProjectStatus] = useState('active');
 
@@ -90,9 +89,9 @@ export const TemplatesManager: React.FC = () => {
     setTemplateCategory('');
     setTemplatePrice(0);
     setPreviewUrl('');
-    setHtmlContent('');
-    setCssContent('');
-    setJsContent('');
+    setHtmlContent('<!DOCTYPE html>\n<html>\n<head>\n    <title>القالب الجديد</title>\n</head>\n<body>\n    <h1>مرحباً بالقالب الجديد</h1>\n</body>\n</html>');
+    setCssContent('/* أضف CSS هنا */');
+    setJsContent('// أضف JavaScript هنا');
     setDisplayOrder(0);
     setProjectStatus('active');
     setEditingTemplate(null);
@@ -102,7 +101,7 @@ export const TemplatesManager: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim() || !description.trim() || !htmlContent.trim() || !templateCategory.trim()) {
+    if (!title.trim() || !description.trim() || !templateCategory.trim() || !previewUrl.trim() || !technologies.trim()) {
       toast({
         title: 'خطأ',
         description: 'يرجى ملء جميع الحقول المطلوبة',
@@ -120,7 +119,7 @@ export const TemplatesManager: React.FC = () => {
         technologies: techArray,
         template_category: templateCategory.trim(),
         template_price: templatePrice,
-        preview_url: previewUrl.trim() || null,
+        preview_url: previewUrl.trim(),
         html_content: htmlContent.trim(),
         css_content: cssContent.trim() || null,
         js_content: jsContent.trim() || null,
