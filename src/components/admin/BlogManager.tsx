@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,23 +7,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Trash2, Edit, Plus, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Eye, EyeOff, Settings, ExternalLink } from 'lucide-react';
 
 interface BlogPost {
   id: string;
   title: string;
   slug: string;
   content: string;
-  excerpt: string;
-  category_id: string;
+  excerpt: string | null;
+  category_id: string | null;
   is_published: boolean;
   is_featured: boolean;
   view_count: number;
   created_at: string;
-  published_at: string;
+  updated_at: string;
+  published_at: string | null;
   blog_categories?: {
     name: string;
   };
@@ -32,53 +33,42 @@ interface BlogCategory {
   id: string;
   name: string;
   slug: string;
-  description: string;
+  description: string | null;
+  display_order: number | null;
   is_active: boolean;
-  display_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
-export function BlogManager() {
+export const BlogManager: React.FC = () => {
   const { toast } = useToast();
+  
+  // Posts state
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // إدارة التدوينات
-  const [showPostDialog, setShowPostDialog] = useState(false);
+  const [showPostForm, setShowPostForm] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [postTitle, setPostTitle] = useState('');
-  const [postSlug, setPostSlug] = useState('');
   const [postContent, setPostContent] = useState('');
   const [postExcerpt, setPostExcerpt] = useState('');
-  const [postCategoryId, setPostCategoryId] = useState('');
+  const [postCategoryId, setPostCategoryId] = useState<string>('');
+  const [postIsPublished, setPostIsPublished] = useState(false);
   const [postIsFeatured, setPostIsFeatured] = useState(false);
 
-  // إدارة التصنيفات
-  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  // Categories state
+  const [categories, setCategories] = useState<BlogCategory[]>([]);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<BlogCategory | null>(null);
   const [categoryName, setCategoryName] = useState('');
-  const [categorySlug, setCategorySlug] = useState('');
   const [categoryDescription, setCategoryDescription] = useState('');
-  const [categoryDisplayOrder, setCategoryDisplayOrder] = useState(0);
 
   useEffect(() => {
-    loadBlogData();
+    loadPosts();
+    loadCategories();
   }, []);
 
-  const loadBlogData = async () => {
+  const loadPosts = async () => {
     try {
-      // جلب التصنيفات
-      const { data: categoriesData } = await supabase
-        .from('blog_categories')
-        .select('*')
-        .order('display_order');
-
-      if (categoriesData) {
-        setCategories(categoriesData);
-      }
-
-      // جلب التدوينات
-      const { data: postsData } = await supabase
+      const { data, error } = await supabase
         .from('blog_posts')
         .select(`
           *,
@@ -88,22 +78,41 @@ export function BlogManager() {
         `)
         .order('created_at', { ascending: false });
 
-      console.log('Loaded posts:', postsData);
-
-      if (postsData) {
-        setPosts(postsData);
-      }
+      if (error) throw error;
+      setPosts(data || []);
     } catch (error) {
-      console.error('Error loading blog data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error loading posts:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في تحميل التدوينات',
+        variant: 'destructive',
+      });
     }
   };
 
-  const generateSlug = (title: string) => {
+  const loadCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blog_categories')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في تحميل التصنيفات',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const generateSlug = (title: string): string => {
     return title
       .toLowerCase()
-      .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, '')
+      .replace(/[^\u0600-\u06FF\w\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim();
@@ -111,31 +120,17 @@ export function BlogManager() {
 
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!postTitle.trim() || !postContent.trim()) {
-      toast({
-        title: 'خطأ',
-        description: 'يرجى ملء جميع الحقول المطلوبة',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     try {
-      const slug = postSlug || generateSlug(postTitle);
-      
+      const slug = generateSlug(postTitle);
       const postData = {
-        title: postTitle.trim(),
+        title: postTitle,
         slug,
-        content: postContent.trim(),
-        excerpt: postExcerpt.trim() || null,
+        content: postContent,
+        excerpt: postExcerpt || null,
         category_id: postCategoryId || null,
+        is_published: postIsPublished,
         is_featured: postIsFeatured,
-        is_published: true, // نشر تلقائي
-        published_at: new Date().toISOString(),
       };
-
-      console.log('Submitting post data:', postData);
 
       if (editingPost) {
         const { error } = await supabase
@@ -143,66 +138,120 @@ export function BlogManager() {
           .update(postData)
           .eq('id', editingPost.id);
 
-        if (error) {
-          console.error('Update error:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         toast({
-          title: 'تم التحديث',
-          description: 'تم تحديث التدوينة ونشرها بنجاح',
+          title: 'نجح',
+          description: 'تم تحديث التدوينة بنجاح',
         });
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('blog_posts')
-          .insert([postData])
-          .select();
+          .insert([postData]);
 
-        if (error) {
-          console.error('Insert error:', error);
-          throw error;
-        }
-
-        console.log('Post created:', data);
+        if (error) throw error;
 
         toast({
-          title: 'تم النشر',
-          description: 'تم إنشاء ونشر التدوينة بنجاح',
+          title: 'نجح',
+          description: 'تم نشر التدوينة بنجاح',
         });
       }
 
       handlePostCancel();
-      loadBlogData();
+      loadPosts();
     } catch (error) {
       console.error('Error saving post:', error);
       toast({
         title: 'خطأ',
-        description: 'فشل في حفظ التدوينة: ' + (error as any).message,
+        description: 'فشل في حفظ التدوينة',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const slug = generateSlug(categoryName);
+      const categoryData = {
+        name: categoryName,
+        slug,
+        description: categoryDescription || null,
+        display_order: categories.length,
+        is_active: true,
+      };
+
+      if (editingCategory) {
+        const { error } = await supabase
+          .from('blog_categories')
+          .update(categoryData)
+          .eq('id', editingCategory.id);
+
+        if (error) throw error;
+
+        toast({
+          title: 'نجح',
+          description: 'تم تحديث التصنيف بنجاح',
+        });
+      } else {
+        const { error } = await supabase
+          .from('blog_categories')
+          .insert([categoryData]);
+
+        if (error) throw error;
+
+        toast({
+          title: 'نجح',
+          description: 'تم إنشاء التصنيف بنجاح',
+        });
+      }
+
+      handleCategoryCancel();
+      loadCategories();
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في حفظ التصنيف',
         variant: 'destructive',
       });
     }
   };
 
   const handlePostCancel = () => {
-    setShowPostDialog(false);
+    setShowPostForm(false);
     setEditingPost(null);
     setPostTitle('');
-    setPostSlug('');
     setPostContent('');
     setPostExcerpt('');
     setPostCategoryId('');
+    setPostIsPublished(false);
     setPostIsFeatured(false);
+  };
+
+  const handleCategoryCancel = () => {
+    setShowCategoryForm(false);
+    setEditingCategory(null);
+    setCategoryName('');
+    setCategoryDescription('');
   };
 
   const handleEditPost = (post: BlogPost) => {
     setEditingPost(post);
     setPostTitle(post.title);
-    setPostSlug(post.slug);
     setPostContent(post.content);
     setPostExcerpt(post.excerpt || '');
     setPostCategoryId(post.category_id || '');
+    setPostIsPublished(post.is_published);
     setPostIsFeatured(post.is_featured);
-    setShowPostDialog(true);
+    setShowPostForm(true);
+  };
+
+  const handleEditCategory = (category: BlogCategory) => {
+    setEditingCategory(category);
+    setCategoryName(category.name);
+    setCategoryDescription(category.description || '');
+    setShowCategoryForm(true);
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -217,11 +266,11 @@ export function BlogManager() {
       if (error) throw error;
 
       toast({
-        title: 'تم الحذف',
+        title: 'نجح',
         description: 'تم حذف التدوينة بنجاح',
       });
 
-      loadBlogData();
+      loadPosts();
     } catch (error) {
       console.error('Error deleting post:', error);
       toast({
@@ -232,409 +281,281 @@ export function BlogManager() {
     }
   };
 
-  const handleTogglePublish = async (postId: string, currentStatus: boolean) => {
-    try {
-      const updateData: any = { is_published: !currentStatus };
-      
-      // إذا كان سيتم النشر، نضع تاريخ النشر
-      if (!currentStatus) {
-        updateData.published_at = new Date().toISOString();
-      }
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا التصنيف؟')) return;
 
+    try {
       const { error } = await supabase
-        .from('blog_posts')
-        .update(updateData)
-        .eq('id', postId);
+        .from('blog_categories')
+        .delete()
+        .eq('id', categoryId);
 
       if (error) throw error;
 
       toast({
-        title: 'تم التحديث',
-        description: `تم ${!currentStatus ? 'نشر' : 'إلغاء نشر'} التدوينة`,
+        title: 'نجح',
+        description: 'تم حذف التصنيف بنجاح',
       });
 
-      loadBlogData();
+      loadCategories();
     } catch (error) {
-      console.error('Error toggling publish status:', error);
+      console.error('Error deleting category:', error);
       toast({
         title: 'خطأ',
-        description: 'فشل في تحديث حالة النشر',
+        description: 'فشل في حذف التصنيف',
         variant: 'destructive',
       });
     }
   };
-
-  const handleCategorySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const slug = categorySlug || generateSlug(categoryName);
-      
-      const categoryData = {
-        name: categoryName,
-        slug,
-        description: categoryDescription,
-        display_order: categoryDisplayOrder,
-      };
-
-      if (editingCategory) {
-        const { error } = await supabase
-          .from('blog_categories')
-          .update(categoryData)
-          .eq('id', editingCategory.id);
-
-        if (error) throw error;
-
-        toast({
-          title: 'تم التحديث',
-          description: 'تم تحديث التصنيف بنجاح',
-        });
-      } else {
-        const { error } = await supabase
-          .from('blog_categories')
-          .insert([categoryData]);
-
-        if (error) throw error;
-
-        toast({
-          title: 'تم الحفظ',
-          description: 'تم إنشاء التصنيف بنجاح',
-        });
-      }
-
-      handleCategoryCancel();
-      loadBlogData();
-    } catch (error) {
-      console.error('Error saving category:', error);
-      toast({
-        title: 'خطأ',
-        description: 'فشل في حفظ التصنيف',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleCategoryCancel = () => {
-    setShowCategoryDialog(false);
-    setEditingCategory(null);
-    setCategoryName('');
-    setCategorySlug('');
-    setCategoryDescription('');
-    setCategoryDisplayOrder(0);
-  };
-
-  const handleEditCategory = (category: BlogCategory) => {
-    setEditingCategory(category);
-    setCategoryName(category.name);
-    setCategorySlug(category.slug);
-    setCategoryDescription(category.description || '');
-    setCategoryDisplayOrder(category.display_order);
-    setShowCategoryDialog(true);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      {/* إدارة التدوينات */}
+      {/* Posts Management */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>إدارة التدوينات</CardTitle>
-              <CardDescription>إنشاء وتحرير ونشر التدوينات</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild variant="outline">
-                <a href="/blog" target="_blank">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  عرض المدونة
-                </a>
-              </Button>
-              <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
-                <DialogTrigger asChild>
-                  <Button onClick={() => setEditingPost(null)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    تدوينة جديدة
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingPost ? 'تحرير التدوينة' : 'تدوينة جديدة'}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {editingPost ? 'قم بتحرير التدوينة' : 'أنشئ تدوينة جديدة'}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handlePostSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="post-title">عنوان التدوينة *</Label>
-                        <Input
-                          id="post-title"
-                          value={postTitle}
-                          onChange={(e) => setPostTitle(e.target.value)}
-                          required
-                          placeholder="اكتب عنوان التدوينة"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="post-slug">الرابط (اختياري)</Label>
-                        <Input
-                          id="post-slug"
-                          value={postSlug}
-                          onChange={(e) => setPostSlug(e.target.value)}
-                          placeholder="سيتم إنشاؤه تلقائياً"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="post-excerpt">مقتطف</Label>
-                      <Textarea
-                        id="post-excerpt"
-                        value={postExcerpt}
-                        onChange={(e) => setPostExcerpt(e.target.value)}
-                        placeholder="وصف مختصر للتدوينة"
-                        rows={2}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="post-content">محتوى التدوينة *</Label>
-                      <Textarea
-                        id="post-content"
-                        value={postContent}
-                        onChange={(e) => setPostContent(e.target.value)}
-                        required
-                        rows={12}
-                        className="font-mono"
-                        placeholder="اكتب محتوى التدوينة هنا..."
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="post-category">التصنيف</Label>
-                        <Select value={postCategoryId} onValueChange={setPostCategoryId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر التصنيف" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">بدون تصنيف</SelectItem>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-center space-x-2 pt-6">
-                        <input
-                          type="checkbox"
-                          id="post-featured"
-                          checked={postIsFeatured}
-                          onChange={(e) => setPostIsFeatured(e.target.checked)}
-                          className="rounded"
-                        />
-                        <Label htmlFor="post-featured">تدوينة مميزة</Label>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end space-x-2">
-                      <Button type="button" variant="outline" onClick={handlePostCancel}>
-                        إلغاء
-                      </Button>
-                      <Button type="submit">
-                        {editingPost ? 'تحديث ونشر' : 'نشر التدوينة'}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
+          <CardTitle>إدارة التدوينات</CardTitle>
+          <CardDescription>إنشاء وتعديل وحذف تدوينات المدونة</CardDescription>
+          <Button onClick={() => setShowPostForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            إضافة تدوينة جديدة
+          </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {posts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>لا توجد تدوينات حالياً</p>
-              </div>
-            ) : (
-              posts.map((post) => (
-                <div key={post.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium">{post.title}</h3>
-                      {post.is_published ? (
-                        <Badge variant="default">منشور</Badge>
-                      ) : (
-                        <Badge variant="secondary">مسودة</Badge>
-                      )}
-                      {post.is_featured && (
-                        <Badge variant="outline">مميز</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {post.blog_categories?.name || 'بدون تصنيف'} • {post.view_count || 0} مشاهدة
-                    </p>
-                    {post.is_published && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        نُشر: {new Date(post.published_at).toLocaleDateString('ar-SA')}
-                      </p>
-                    )}
+          {showPostForm && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>{editingPost ? 'تعديل التدوينة' : 'إضافة تدوينة جديدة'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePostSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="postTitle">عنوان التدوينة *</Label>
+                    <Input
+                      id="postTitle"
+                      value={postTitle}
+                      onChange={(e) => setPostTitle(e.target.value)}
+                      placeholder="أدخل عنوان التدوينة"
+                      required
+                    />
                   </div>
-                  <div className="flex items-center gap-2">
-                    {post.is_published && (
+
+                  <div>
+                    <Label htmlFor="postExcerpt">مقتطف التدوينة</Label>
+                    <Textarea
+                      id="postExcerpt"
+                      value={postExcerpt}
+                      onChange={(e) => setPostExcerpt(e.target.value)}
+                      placeholder="مقتطف قصير عن التدوينة"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="postCategory">التصنيف</Label>
+                    <Select value={postCategoryId} onValueChange={setPostCategoryId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر التصنيف" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no-category">بدون تصنيف</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="postContent">محتوى التدوينة *</Label>
+                    <Textarea
+                      id="postContent"
+                      value={postContent}
+                      onChange={(e) => setPostContent(e.target.value)}
+                      placeholder="اكتب محتوى التدوينة هنا..."
+                      rows={10}
+                      required
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-4 space-x-reverse">
+                    <label className="flex items-center space-x-2 space-x-reverse">
+                      <input
+                        type="checkbox"
+                        checked={postIsPublished}
+                        onChange={(e) => setPostIsPublished(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span>نشر التدوينة</span>
+                    </label>
+
+                    <label className="flex items-center space-x-2 space-x-reverse">
+                      <input
+                        type="checkbox"
+                        checked={postIsFeatured}
+                        onChange={(e) => setPostIsFeatured(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span>تدوينة مميزة</span>
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button type="submit">
+                      {editingPost ? 'تحديث التدوينة' : 'نشر التدوينة'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handlePostCancel}>
+                      إلغاء
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Posts List */}
+          <div className="space-y-4">
+            {posts.map((post) => (
+              <Card key={post.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-lg">{post.title}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {post.excerpt || 'لا يوجد مقتطف'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        {post.blog_categories && (
+                          <Badge variant="secondary">{post.blog_categories.name}</Badge>
+                        )}
+                        {post.is_published ? (
+                          <Badge variant="default">منشور</Badge>
+                        ) : (
+                          <Badge variant="outline">مسودة</Badge>
+                        )}
+                        {post.is_featured && <Badge variant="secondary">مميز</Badge>}
+                        <span className="text-xs text-muted-foreground">
+                          <Eye className="h-3 w-3 inline mr-1" />
+                          {post.view_count} مشاهدة
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        asChild
+                        onClick={() => handleEditPost(post)}
                       >
-                        <a href={`/blog/${post.slug}`} target="_blank">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        <Edit className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleTogglePublish(post.id, post.is_published)}
-                    >
-                      {post.is_published ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEditPost(post)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeletePost(post.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeletePost(post.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* إدارة التصنيفات */}
+      {/* Categories Management */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>إدارة التصنيفات</CardTitle>
-              <CardDescription>إنشاء وتحرير تصنيفات المدونة</CardDescription>
-            </div>
-            <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setEditingCategory(null)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  تصنيف جديد
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingCategory ? 'تحرير التصنيف' : 'تصنيف جديد'}
-                  </DialogTitle>
-                </DialogHeader>
+          <CardTitle>إدارة التصنيفات</CardTitle>
+          <CardDescription>إنشاء وتعديل وحذف تصنيفات المدونة</CardDescription>
+          <Button onClick={() => setShowCategoryForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            إضافة تصنيف جديد
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {showCategoryForm && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>{editingCategory ? 'تعديل التصنيف' : 'إضافة تصنيف جديد'}</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <form onSubmit={handleCategorySubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="category-name">اسم التصنيف</Label>
+                    <Label htmlFor="categoryName">اسم التصنيف *</Label>
                     <Input
-                      id="category-name"
+                      id="categoryName"
                       value={categoryName}
                       onChange={(e) => setCategoryName(e.target.value)}
+                      placeholder="أدخل اسم التصنيف"
                       required
                     />
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="category-slug">الرابط (اختياري)</Label>
-                    <Input
-                      id="category-slug"
-                      value={categorySlug}
-                      onChange={(e) => setCategorySlug(e.target.value)}
-                      placeholder="سيتم إنشاؤه تلقائياً"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="category-description">الوصف</Label>
+                    <Label htmlFor="categoryDescription">وصف التصنيف</Label>
                     <Textarea
-                      id="category-description"
+                      id="categoryDescription"
                       value={categoryDescription}
                       onChange={(e) => setCategoryDescription(e.target.value)}
-                      rows={3}
+                      placeholder="وصف مختصر للتصنيف"
+                      rows={2}
                     />
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="category-order">ترتيب العرض</Label>
-                    <Input
-                      id="category-order"
-                      type="number"
-                      value={categoryDisplayOrder}
-                      onChange={(e) => setCategoryDisplayOrder(parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
+
+                  <div className="flex gap-2">
+                    <Button type="submit">
+                      {editingCategory ? 'تحديث التصنيف' : 'إنشاء التصنيف'}
+                    </Button>
                     <Button type="button" variant="outline" onClick={handleCategoryCancel}>
                       إلغاء
                     </Button>
-                    <Button type="submit">
-                      {editingCategory ? 'تحديث' : 'حفظ'}
-                    </Button>
                   </div>
                 </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Categories List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">{category.name}</h3>
-                  <p className="text-sm text-muted-foreground">{category.description}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleEditCategory(category)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Card key={category.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{category.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {category.description || 'لا يوجد وصف'}
+                      </p>
+                      <Badge variant={category.is_active ? 'default' : 'secondary'} className="mt-2">
+                        {category.is_active ? 'نشط' : 'غير نشط'}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditCategory(category)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteCategory(category.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </CardContent>
       </Card>
     </div>
   );
-}
+};
