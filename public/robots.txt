@@ -1,53 +1,78 @@
+
 # robots.txt for m0usa.ly
 # موقع موسى عمر - مطور مواقع ليبي
 
 User-agent: *
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
 Disallow: /api/
-# لو تبي ملفات الـ JSON تظهر في البحث، شيل السطر هادا:
-# Disallow: /*.json$
+# السماح بفهرسة ملفات JSON المهمة
+Allow: /sitemap.xml
+Allow: /robots.txt
 
-# Search Engine Bots
+# Search Engine Bots - تحسين الفهرسة
 User-agent: Googlebot
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
-# لو تبي جوجل يفهرس موقعك أسرع، شيل السطر هادا:
-# Crawl-delay: 1
+Crawl-delay: 1
 
 User-agent: Bingbot
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
-# لو تبي بينج يفهرس موقعك أسرع، شيل السطر هادا:
-# Crawl-delay: 1
+Crawl-delay: 1
 
 User-agent: Slurp
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
 
 User-agent: DuckDuckBot
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
 
 User-agent: Baiduspider
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
 
 User-agent: YandexBot
 Allow: /
+Allow: /blog/
+Allow: /blog/category/
 Disallow: /admin/
 
-# Social Media Crawlers
+# Social Media Crawlers - لمشاركة أفضل
 User-agent: facebookexternalhit
 Allow: /
+Allow: /blog/
 
 User-agent: Twitterbot
 Allow: /
+Allow: /blog/
 
 User-agent: LinkedInBot
 Allow: /
+Allow: /blog/
 
 User-agent: WhatsApp
 Allow: /
+Allow: /blog/
 
+# خريطة الموقع
 Sitemap: https://www.m0usa.ly/sitemap.xml
+
+# ملاحظات إضافية:
+# - جميع صفحات المدونة مسموح بفهرستها
+# - صفحات المشاريع والقوالب مسموحة
+# - صفحة الإدارة محجوبة عن محركات البحث
+# - معدل الفهرسة محسن لأداء أفضل

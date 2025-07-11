@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Eye, EyeOff, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Settings, ExternalLink } from 'lucide-react';
 
 interface BlogPost {
   id: string;
@@ -23,6 +22,7 @@ interface BlogPost {
   is_featured: boolean;
   view_count: number;
   created_at: string;
+  published_at: string;
   blog_categories?: {
     name: string;
   };
@@ -88,6 +88,8 @@ export function BlogManager() {
         `)
         .order('created_at', { ascending: false });
 
+      console.log('Loaded posts:', postsData);
+
       if (postsData) {
         setPosts(postsData);
       }
@@ -110,17 +112,30 @@ export function BlogManager() {
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!postTitle.trim() || !postContent.trim()) {
+      toast({
+        title: 'خطأ',
+        description: 'يرجى ملء جميع الحقول المطلوبة',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       const slug = postSlug || generateSlug(postTitle);
       
       const postData = {
-        title: postTitle,
+        title: postTitle.trim(),
         slug,
-        content: postContent,
-        excerpt: postExcerpt,
+        content: postContent.trim(),
+        excerpt: postExcerpt.trim() || null,
         category_id: postCategoryId || null,
         is_featured: postIsFeatured,
+        is_published: true, // نشر تلقائي
+        published_at: new Date().toISOString(),
       };
+
+      console.log('Submitting post data:', postData);
 
       if (editingPost) {
         const { error } = await supabase
@@ -128,22 +143,31 @@ export function BlogManager() {
           .update(postData)
           .eq('id', editingPost.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Update error:', error);
+          throw error;
+        }
 
         toast({
           title: 'تم التحديث',
-          description: 'تم تحديث التدوينة بنجاح',
+          description: 'تم تحديث التدوينة ونشرها بنجاح',
         });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('blog_posts')
-          .insert([postData]);
+          .insert([postData])
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Insert error:', error);
+          throw error;
+        }
+
+        console.log('Post created:', data);
 
         toast({
-          title: 'تم الحفظ',
-          description: 'تم إنشاء التدوينة بنجاح',
+          title: 'تم النشر',
+          description: 'تم إنشاء ونشر التدوينة بنجاح',
         });
       }
 
@@ -153,7 +177,7 @@ export function BlogManager() {
       console.error('Error saving post:', error);
       toast({
         title: 'خطأ',
-        description: 'فشل في حفظ التدوينة',
+        description: 'فشل في حفظ التدوينة: ' + (error as any).message,
         variant: 'destructive',
       });
     }
@@ -210,9 +234,16 @@ export function BlogManager() {
 
   const handleTogglePublish = async (postId: string, currentStatus: boolean) => {
     try {
+      const updateData: any = { is_published: !currentStatus };
+      
+      // إذا كان سيتم النشر، نضع تاريخ النشر
+      if (!currentStatus) {
+        updateData.published_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('blog_posts')
-        .update({ is_published: !currentStatus })
+        .update(updateData)
         .eq('id', postId);
 
       if (error) throw error;
@@ -319,158 +350,190 @@ export function BlogManager() {
               <CardTitle>إدارة التدوينات</CardTitle>
               <CardDescription>إنشاء وتحرير ونشر التدوينات</CardDescription>
             </div>
-            <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setEditingPost(null)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  تدوينة جديدة
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingPost ? 'تحرير التدوينة' : 'تدوينة جديدة'}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingPost ? 'قم بتحرير التدوينة' : 'أنشئ تدوينة جديدة'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handlePostSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+            <div className="flex gap-2">
+              <Button asChild variant="outline">
+                <a href="/blog" target="_blank">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  عرض المدونة
+                </a>
+              </Button>
+              <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setEditingPost(null)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    تدوينة جديدة
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingPost ? 'تحرير التدوينة' : 'تدوينة جديدة'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingPost ? 'قم بتحرير التدوينة' : 'أنشئ تدوينة جديدة'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handlePostSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="post-title">عنوان التدوينة *</Label>
+                        <Input
+                          id="post-title"
+                          value={postTitle}
+                          onChange={(e) => setPostTitle(e.target.value)}
+                          required
+                          placeholder="اكتب عنوان التدوينة"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="post-slug">الرابط (اختياري)</Label>
+                        <Input
+                          id="post-slug"
+                          value={postSlug}
+                          onChange={(e) => setPostSlug(e.target.value)}
+                          placeholder="سيتم إنشاؤه تلقائياً"
+                        />
+                      </div>
+                    </div>
+                    
                     <div>
-                      <Label htmlFor="post-title">عنوان التدوينة</Label>
-                      <Input
-                        id="post-title"
-                        value={postTitle}
-                        onChange={(e) => setPostTitle(e.target.value)}
+                      <Label htmlFor="post-excerpt">مقتطف</Label>
+                      <Textarea
+                        id="post-excerpt"
+                        value={postExcerpt}
+                        onChange={(e) => setPostExcerpt(e.target.value)}
+                        placeholder="وصف مختصر للتدوينة"
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="post-content">محتوى التدوينة *</Label>
+                      <Textarea
+                        id="post-content"
+                        value={postContent}
+                        onChange={(e) => setPostContent(e.target.value)}
                         required
+                        rows={12}
+                        className="font-mono"
+                        placeholder="اكتب محتوى التدوينة هنا..."
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="post-slug">الرابط (اختياري)</Label>
-                      <Input
-                        id="post-slug"
-                        value={postSlug}
-                        onChange={(e) => setPostSlug(e.target.value)}
-                        placeholder="سيتم إنشاؤه تلقائياً"
-                      />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="post-category">التصنيف</Label>
+                        <Select value={postCategoryId} onValueChange={setPostCategoryId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر التصنيف" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">بدون تصنيف</SelectItem>
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center space-x-2 pt-6">
+                        <input
+                          type="checkbox"
+                          id="post-featured"
+                          checked={postIsFeatured}
+                          onChange={(e) => setPostIsFeatured(e.target.checked)}
+                          className="rounded"
+                        />
+                        <Label htmlFor="post-featured">تدوينة مميزة</Label>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="post-excerpt">مقتطف</Label>
-                    <Textarea
-                      id="post-excerpt"
-                      value={postExcerpt}
-                      onChange={(e) => setPostExcerpt(e.target.value)}
-                      placeholder="وصف مختصر للتدوينة"
-                      rows={2}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="post-content">محتوى التدوينة</Label>
-                    <Textarea
-                      id="post-content"
-                      value={postContent}
-                      onChange={(e) => setPostContent(e.target.value)}
-                      required
-                      rows={10}
-                      className="font-mono"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="post-category">التصنيف</Label>
-                      <Select value={postCategoryId} onValueChange={setPostCategoryId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر التصنيف" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">بدون تصنيف</SelectItem>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    
+                    <div className="flex justify-end space-x-2">
+                      <Button type="button" variant="outline" onClick={handlePostCancel}>
+                        إلغاء
+                      </Button>
+                      <Button type="submit">
+                        {editingPost ? 'تحديث ونشر' : 'نشر التدوينة'}
+                      </Button>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="post-featured"
-                        checked={postIsFeatured}
-                        onChange={(e) => setPostIsFeatured(e.target.checked)}
-                        className="rounded"
-                      />
-                      <Label htmlFor="post-featured">تدوينة مميزة</Label>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={handlePostCancel}>
-                      إلغاء
-                    </Button>
-                    <Button type="submit">
-                      {editingPost ? 'تحديث' : 'حفظ'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {posts.map((post) => (
-              <div key={post.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-medium">{post.title}</h3>
-                    {post.is_published ? (
-                      <Badge variant="default">منشور</Badge>
-                    ) : (
-                      <Badge variant="secondary">مسودة</Badge>
-                    )}
-                    {post.is_featured && (
-                      <Badge variant="outline">مميز</Badge>
+            {posts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>لا توجد تدوينات حالياً</p>
+              </div>
+            ) : (
+              posts.map((post) => (
+                <div key={post.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-medium">{post.title}</h3>
+                      {post.is_published ? (
+                        <Badge variant="default">منشور</Badge>
+                      ) : (
+                        <Badge variant="secondary">مسودة</Badge>
+                      )}
+                      {post.is_featured && (
+                        <Badge variant="outline">مميز</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {post.blog_categories?.name || 'بدون تصنيف'} • {post.view_count || 0} مشاهدة
+                    </p>
+                    {post.is_published && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        نُشر: {new Date(post.published_at).toLocaleDateString('ar-SA')}
+                      </p>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {post.blog_categories?.name || 'بدون تصنيف'} • {post.view_count} مشاهدة
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleTogglePublish(post.id, post.is_published)}
-                  >
-                    {post.is_published ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    {post.is_published && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                      >
+                        <a href={`/blog/${post.slug}`} target="_blank">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
                     )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleEditPost(post)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeletePost(post.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleTogglePublish(post.id, post.is_published)}
+                    >
+                      {post.is_published ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditPost(post)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeletePost(post.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

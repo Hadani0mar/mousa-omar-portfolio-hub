@@ -1,39 +1,43 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from 'react-helmet-async';
-import { ThemeProvider } from './components/ThemeProvider';
-import { AuthProvider } from './components/AuthProvider';
-import { Toaster } from './components/ui/toaster';
-import HomePage from './pages/HomePage';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
-import ProjectView from './pages/ProjectView';
-import TerminalPage from './pages/TerminalPage';
-import BlogPage from './pages/BlogPage';
-import './App.css';
+import Index from "./pages/Index";
+import HomePage from "./pages/HomePage";
+import ProjectView from "./pages/ProjectView";
+import NotFound from "./pages/NotFound";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import TerminalPage from "./pages/TerminalPage";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
 
-function App() {
-  return (
-    <HelmetProvider>
-      <ThemeProvider defaultTheme="dark" storageKey="portfolio-theme">
-        <AuthProvider>
-          <Router>
-            <div className="min-h-screen bg-background text-foreground">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/admin" element={<AdminLogin />} />
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                <Route path="/project/:id" element={<ProjectView />} />
-                <Route path="/terminal" element={<TerminalPage />} />
-                <Route path="/blog" element={<BlogPage />} />
-              </Routes>
-              <Toaster />
-            </div>
-          </Router>
-        </AuthProvider>
-      </ThemeProvider>
-    </HelmetProvider>
-  );
-}
+const queryClient = new QueryClient();
+
+const App = () => (
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/project/:id" element={<ProjectView />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/terminal" element={<TerminalPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
+);
 
 export default App;

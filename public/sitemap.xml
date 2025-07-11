@@ -1,9 +1,60 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <!-- الصفحة الرئيسية -->
   <url>
     <loc>https://www.m0usa.ly/</loc>
-    <lastmod>2025-07-09</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>
+  
+  <!-- صفحة المدونة -->
+  <url>
+    <loc>https://www.m0usa.ly/blog</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- صفحات التدوينات (ستتم إضافتها ديناميكياً) -->
+  <!-- يمكن إضافة تدوينات محددة هنا أو إنشاء sitemap ديناميكي -->
+  
+  <!-- صفحات التصنيفات -->
+  <url>
+    <loc>https://www.m0usa.ly/blog/category/web-development</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.m0usa.ly/blog/category/tech-tips</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.m0usa.ly/blog/category/tech-news</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- صفحة المشاريع والقوالب -->
+  <url>
+    <loc>https://www.m0usa.ly/projects</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- صفحة لوحة التحكم (للإدارة فقط) -->
+  <url>
+    <loc>https://www.m0usa.ly/admin</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>
