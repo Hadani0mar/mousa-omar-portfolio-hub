@@ -89,7 +89,14 @@ export const BlogManager: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
+      
+      // Ensure all posts have the links property, even if null
+      const postsWithLinks = (data || []).map(post => ({
+        ...post,
+        links: post.links || null
+      }));
+      
+      setPosts(postsWithLinks);
     } catch (error) {
       console.error('Error loading posts:', error);
       toast({
@@ -588,7 +595,7 @@ export const BlogManager: React.FC = () => {
 
                   <div className="flex gap-2">
                     <Button type="submit">
-                      {editingCategory ? 'تحديث التصنيف' : 'إنشاء التصنيف'}
+                      {editingCategory ? 'تعديل التصنيف' : 'إنشاء التصنيف'}
                     </Button>
                     <Button type="button" variant="outline" onClick={handleCategoryCancel}>
                       إلغاء

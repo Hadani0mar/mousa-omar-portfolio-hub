@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,7 +66,13 @@ export default function BlogPostPage() {
         return;
       }
 
-      setPost(data);
+      // Ensure the post has the links property, even if null
+      const postWithLinks = {
+        ...data,
+        links: data.links || null
+      };
+
+      setPost(postWithLinks);
       
       // تحديث عدد المشاهدات
       await supabase
