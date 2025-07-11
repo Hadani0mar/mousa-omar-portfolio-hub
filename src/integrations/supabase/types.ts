@@ -176,6 +176,7 @@ export type Database = {
           id: string
           is_featured: boolean | null
           is_published: boolean | null
+          links: Json | null
           published_at: string | null
           slug: string
           title: string
@@ -190,6 +191,7 @@ export type Database = {
           id?: string
           is_featured?: boolean | null
           is_published?: boolean | null
+          links?: Json | null
           published_at?: string | null
           slug: string
           title: string
@@ -204,6 +206,7 @@ export type Database = {
           id?: string
           is_featured?: boolean | null
           is_published?: boolean | null
+          links?: Json | null
           published_at?: string | null
           slug?: string
           title?: string

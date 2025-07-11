@@ -53,7 +53,6 @@ export default function BlogPostPage() {
         .from('blog_posts')
         .select(`
           *,
-          links,
           blog_categories (
             name,
             slug
