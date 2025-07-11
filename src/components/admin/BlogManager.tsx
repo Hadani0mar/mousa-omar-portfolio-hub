@@ -82,6 +82,7 @@ export const BlogManager: React.FC = () => {
         .from('blog_posts')
         .select(`
           *,
+          links,
           blog_categories (
             name
           )

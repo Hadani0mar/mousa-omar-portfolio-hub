@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +53,7 @@ export default function BlogPostPage() {
         .from('blog_posts')
         .select(`
           *,
+          links,
           blog_categories (
             name,
             slug
