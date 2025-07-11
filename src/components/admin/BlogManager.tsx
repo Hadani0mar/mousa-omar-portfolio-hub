@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,8 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Edit, Plus, Eye } from 'lucide-react';
+import { Trash2, Edit, Plus, Eye, Link as LinkIcon, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+interface BlogLink {
+  title: string;
+  url: string;
+}
 
 interface BlogPost {
   id: string;
@@ -21,6 +25,7 @@ interface BlogPost {
   is_published: boolean;
   is_featured: boolean;
   view_count: number;
+  links: BlogLink[] | null;
   created_at: string;
   updated_at: string;
   published_at: string | null;
@@ -53,6 +58,7 @@ export const BlogManager: React.FC = () => {
   const [postCategoryId, setPostCategoryId] = useState<string>('');
   const [postIsPublished, setPostIsPublished] = useState(false);
   const [postIsFeatured, setPostIsFeatured] = useState(false);
+  const [postLinks, setPostLinks] = useState<BlogLink[]>([]);
 
   // Categories state
   const [categories, setCategories] = useState<BlogCategory[]>([]);
@@ -60,6 +66,10 @@ export const BlogManager: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<BlogCategory | null>(null);
   const [categoryName, setCategoryName] = useState('');
   const [categoryDescription, setCategoryDescription] = useState('');
+
+  // Link form state
+  const [newLinkTitle, setNewLinkTitle] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   useEffect(() => {
     loadPosts();
@@ -118,6 +128,18 @@ export const BlogManager: React.FC = () => {
       .trim();
   };
 
+  const addLink = () => {
+    if (newLinkTitle.trim() && newLinkUrl.trim()) {
+      setPostLinks([...postLinks, { title: newLinkTitle.trim(), url: newLinkUrl.trim() }]);
+      setNewLinkTitle('');
+      setNewLinkUrl('');
+    }
+  };
+
+  const removeLink = (index: number) => {
+    setPostLinks(postLinks.filter((_, i) => i !== index));
+  };
+
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -127,9 +149,10 @@ export const BlogManager: React.FC = () => {
         slug,
         content: postContent,
         excerpt: postExcerpt || null,
-        category_id: postCategoryId || null,
+        category_id: postCategoryId === 'no-category' ? null : postCategoryId || null,
         is_published: postIsPublished,
         is_featured: postIsFeatured,
+        links: postLinks.length > 0 ? postLinks : null,
       };
 
       if (editingPost) {
@@ -169,55 +192,6 @@ export const BlogManager: React.FC = () => {
     }
   };
 
-  const handleCategorySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const slug = generateSlug(categoryName);
-      const categoryData = {
-        name: categoryName,
-        slug,
-        description: categoryDescription || null,
-        display_order: categories.length,
-        is_active: true,
-      };
-
-      if (editingCategory) {
-        const { error } = await supabase
-          .from('blog_categories')
-          .update(categoryData)
-          .eq('id', editingCategory.id);
-
-        if (error) throw error;
-
-        toast({
-          title: 'نجح',
-          description: 'تم تحديث التصنيف بنجاح',
-        });
-      } else {
-        const { error } = await supabase
-          .from('blog_categories')
-          .insert([categoryData]);
-
-        if (error) throw error;
-
-        toast({
-          title: 'نجح',
-          description: 'تم إنشاء التصنيف بنجاح',
-        });
-      }
-
-      handleCategoryCancel();
-      loadCategories();
-    } catch (error) {
-      console.error('Error saving category:', error);
-      toast({
-        title: 'خطأ',
-        description: 'فشل في حفظ التصنيف',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handlePostCancel = () => {
     setShowPostForm(false);
     setEditingPost(null);
@@ -227,6 +201,9 @@ export const BlogManager: React.FC = () => {
     setPostCategoryId('');
     setPostIsPublished(false);
     setPostIsFeatured(false);
+    setPostLinks([]);
+    setNewLinkTitle('');
+    setNewLinkUrl('');
   };
 
   const handleCategoryCancel = () => {
@@ -244,6 +221,7 @@ export const BlogManager: React.FC = () => {
     setPostCategoryId(post.category_id || '');
     setPostIsPublished(post.is_published);
     setPostIsFeatured(post.is_featured);
+    setPostLinks(post.links || []);
     setShowPostForm(true);
   };
 
@@ -303,6 +281,55 @@ export const BlogManager: React.FC = () => {
       toast({
         title: 'خطأ',
         description: 'فشل في حذف التصنيف',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const slug = generateSlug(categoryName);
+      const categoryData = {
+        name: categoryName,
+        slug,
+        description: categoryDescription || null,
+        display_order: categories.length,
+        is_active: true,
+      };
+
+      if (editingCategory) {
+        const { error } = await supabase
+          .from('blog_categories')
+          .update(categoryData)
+          .eq('id', editingCategory.id);
+
+        if (error) throw error;
+
+        toast({
+          title: 'نجح',
+          description: 'تم تحديث التصنيف بنجاح',
+        });
+      } else {
+        const { error } = await supabase
+          .from('blog_categories')
+          .insert([categoryData]);
+
+        if (error) throw error;
+
+        toast({
+          title: 'نجح',
+          description: 'تم إنشاء التصنيف بنجاح',
+        });
+      }
+
+      handleCategoryCancel();
+      loadCategories();
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في حفظ التصنيف',
         variant: 'destructive',
       });
     }
@@ -379,6 +406,54 @@ export const BlogManager: React.FC = () => {
                     />
                   </div>
 
+                  {/* Links Section */}
+                  <div className="space-y-4">
+                    <Label className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      المصادر والروابط
+                    </Label>
+                    
+                    {/* Add new link */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="عنوان الرابط"
+                        value={newLinkTitle}
+                        onChange={(e) => setNewLinkTitle(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="https://example.com"
+                        value={newLinkUrl}
+                        onChange={(e) => setNewLinkUrl(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button type="button" onClick={addLink} size="sm">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Display existing links */}
+                    {postLinks.length > 0 && (
+                      <div className="space-y-2">
+                        {postLinks.map((link, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
+                            <LinkIcon className="h-4 w-4" />
+                            <span className="flex-1">{link.title}</span>
+                            <span className="text-sm text-muted-foreground">{link.url}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeLink(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex items-center space-x-4 space-x-reverse">
                     <label className="flex items-center space-x-2 space-x-reverse">
                       <input
@@ -435,6 +510,12 @@ export const BlogManager: React.FC = () => {
                           <Badge variant="outline">مسودة</Badge>
                         )}
                         {post.is_featured && <Badge variant="secondary">مميز</Badge>}
+                        {post.links && post.links.length > 0 && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <LinkIcon className="h-3 w-3" />
+                            {post.links.length} روابط
+                          </Badge>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           <Eye className="h-3 w-3 inline mr-1" />
                           {post.view_count} مشاهدة

@@ -6,8 +6,13 @@ import { TopNavigationBar } from '@/components/TopNavigationBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Eye, Share2, ArrowLeft } from 'lucide-react';
+import { Calendar, Eye, Share2, ArrowLeft, ExternalLink } from 'lucide-react';
 import { SEO } from '@/components/SEO';
+
+interface BlogLink {
+  title: string;
+  url: string;
+}
 
 interface BlogPost {
   id: string;
@@ -19,6 +24,7 @@ interface BlogPost {
   is_published: boolean;
   is_featured: boolean;
   view_count: number;
+  links: BlogLink[] | null;
   created_at: string;
   updated_at: string;
   published_at: string;
@@ -229,7 +235,7 @@ export default function BlogPostPage() {
             
             <CardContent>
               <div 
-                className="prose prose-lg max-w-none text-foreground"
+                className="prose prose-lg max-w-none text-foreground mb-8"
                 style={{ 
                   whiteSpace: 'pre-wrap',
                   lineHeight: '1.8',
@@ -238,6 +244,37 @@ export default function BlogPostPage() {
               >
                 {post.content}
               </div>
+
+              {/* Links and Sources Section */}
+              {post.links && post.links.length > 0 && (
+                <div className="border-t pt-6">
+                  <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+                    <ExternalLink className="h-5 w-5" />
+                    المصادر والروابط
+                  </h3>
+                  <div className="grid gap-3">
+                    {post.links.map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group"
+                      >
+                        <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                        <div className="flex-1">
+                          <span className="font-medium text-foreground group-hover:text-primary">
+                            {link.title}
+                          </span>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {link.url}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
