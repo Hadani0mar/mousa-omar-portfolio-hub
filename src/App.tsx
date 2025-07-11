@@ -9,6 +9,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ProjectView from './pages/ProjectView';
 import TerminalPage from './pages/TerminalPage';
+import BlogPage from './pages/BlogPage';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/project/:id" element={<ProjectView />} />
                 <Route path="/terminal" element={<TerminalPage />} />
+                <Route path="/blog" element={<BlogPage />} />
               </Routes>
               <Toaster />
             </div>

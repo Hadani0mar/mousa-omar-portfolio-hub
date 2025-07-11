@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Terminal, Bell, Sun, Moon } from 'lucide-react';
+import { Terminal, Bell, Sun, Moon, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/ThemeProvider';
 import { useNavigate } from 'react-router-dom';
@@ -14,10 +14,22 @@ export function TopNavigationBar() {
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-foreground">موسى عمر</h1>
+          <h1 className="text-lg font-semibold text-foreground cursor-pointer" onClick={() => navigate('/')}>
+            موسى عمر
+          </h1>
         </div>
         
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/blog')}
+            className="h-8 w-8 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            title="المدونة"
+          >
+            <BookOpen className="h-4 w-4" />
+          </Button>
+          
           <Button
             variant="ghost"
             size="icon"

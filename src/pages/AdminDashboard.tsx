@@ -4,12 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, BarChart3, FileText, Bell, Settings, Code, Globe, Package } from 'lucide-react';
+import { LogOut, BarChart3, FileText, Bell, Settings, Code, Globe, Package, BookOpen } from 'lucide-react';
 import { ProjectForm } from '@/components/admin/ProjectForm';
 import { NotificationForm } from '@/components/admin/NotificationForm';
 import { SkillsManager } from '@/components/admin/SkillsManager';
 import { TemplatesManager } from '@/components/admin/TemplatesManager';
 import { WebsiteManager } from '@/components/admin/WebsiteManager';
+import { BlogManager } from '@/components/admin/BlogManager';
 import { TopNavigationBar } from '@/components/TopNavigationBar';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,6 +19,7 @@ interface Statistics {
   templatesCount: number;
   websitesCount: number;
   notificationsCount: number;
+  blogPostsCount: number;
   totalLikes: number;
   totalDownloads: number;
 }
@@ -32,6 +34,7 @@ export default function AdminDashboard() {
     templatesCount: 0,
     websitesCount: 0,
     notificationsCount: 0,
+    blogPostsCount: 0,
     totalLikes: 0,
     totalDownloads: 0,
   });
@@ -104,11 +107,18 @@ export default function AdminDashboard() {
         .select('id')
         .gt('expires_at', new Date().toISOString());
 
+      // جلب عدد التدوينات المنشورة
+      const { data: blogPosts } = await supabase
+        .from('blog_posts')
+        .select('id')
+        .eq('is_published', true);
+
       setStatistics({
         projectsCount: regularProjects.length,
         templatesCount: templates.length,
         websitesCount: websites?.length || 0,
         notificationsCount: notifications?.length || 0,
+        blogPostsCount: blogPosts?.length || 0,
         totalLikes,
         totalDownloads,
       });
@@ -260,7 +270,7 @@ export default function AdminDashboard() {
           </div>
 
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:grid-cols-7">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">نظرة عامة</span>
@@ -277,6 +287,10 @@ export default function AdminDashboard() {
                 <Globe className="h-4 w-4" />
                 <span className="hidden sm:inline">المواقع</span>
               </TabsTrigger>
+              <TabsTrigger value="blog" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">المدونة</span>
+              </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" />
                 <span className="hidden sm:inline">الإشعارات</span>
@@ -288,7 +302,7 @@ export default function AdminDashboard() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">إجمالي المشاريع</CardTitle>
@@ -319,6 +333,17 @@ export default function AdminDashboard() {
                   <CardContent>
                     <div className="text-2xl font-bold">{statistics.websitesCount}</div>
                     <p className="text-xs text-muted-foreground">المواقع النشطة</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">تدوينات المدونة</CardTitle>
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{statistics.blogPostsCount}</div>
+                    <p className="text-xs text-muted-foreground">التدوينات المنشورة</p>
                   </CardContent>
                 </Card>
 
@@ -403,6 +428,10 @@ export default function AdminDashboard() {
 
             <TabsContent value="websites">
               <WebsiteManager />
+            </TabsContent>
+
+            <TabsContent value="blog">
+              <BlogManager />
             </TabsContent>
 
             <TabsContent value="notifications">
