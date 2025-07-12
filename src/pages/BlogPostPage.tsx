@@ -67,10 +67,10 @@ export default function BlogPostPage() {
         return;
       }
 
-      // Ensure the post has the links property, even if null
+      // تحويل البيانات لتتطابق مع BlogPost interface
       const postWithLinks = {
         ...data,
-        links: data.links || null
+        links: Array.isArray(data.links) ? data.links : null
       };
 
       setPost(postWithLinks);
@@ -116,6 +116,31 @@ export default function BlogPostPage() {
     if (shareUrl) {
       window.open(shareUrl, '_blank', 'width=600,height=400');
     }
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+  };
+
+  // تحويل Markdown إلى HTML بسيط
+  const renderMarkdown = (content: string): string => {
+    return content
+      // العناوين
+      .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold mt-6 mb-4 text-foreground">$1</h2>')
+      .replace(/^### (.+)$/gm, '<h3 class="text-xl font-semibold mt-5 mb-3 text-foreground">$1</h3>')
+      // النص الغامق
+      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>')
+      // النص المائل
+      .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
+      // الكود
+      .replace(/`(.+?)`/g, '<code class="bg-muted px-2 py-1 rounded text-sm font-mono">$1</code>')
+      // القوائم
+      .replace(/^- (.+)$/gm, '<li class="ml-4 mb-1">• $1</li>')
+      // الروابط
+      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">$1</a>')
+      // الأسطر الجديدة
+      .replace(/\n/g, '<br>');
   };
 
   if (loading) {
@@ -170,117 +195,127 @@ export default function BlogPostPage() {
             العودة إلى المدونة
           </Button>
 
-          <Card>
-            <CardHeader>
+          <Card className="shadow-lg">
+            <CardHeader className="border-b bg-muted/30">
               <div className="flex items-center justify-between mb-4">
                 {post.blog_categories && (
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="text-sm">
                     {post.blog_categories.name}
                   </Badge>
                 )}
                 {post.is_featured && (
-                  <Badge variant="default">
+                  <Badge variant="default" className="text-sm">
                     مميز
                   </Badge>
                 )}
               </div>
               
-              <CardTitle className="text-3xl font-bold text-foreground mb-4">
+              <CardTitle className="text-3xl font-bold text-foreground mb-6 leading-tight">
                 {post.title}
               </CardTitle>
               
-              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-6 text-sm text-muted-foreground mb-6">
+                <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  {new Date(post.published_at).toLocaleDateString('ar-SA')}
+                  <span>نشر في: {formatDate(post.published_at)}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <Eye className="h-4 w-4" />
-                  {post.view_count} مشاهدة
+                  <span>{post.view_count} مشاهدة</span>
                 </div>
               </div>
 
               {/* أزرار المشاركة */}
-              <div className="flex items-center gap-2 border-t pt-4">
+              <div className="flex items-center gap-3 pt-4 border-t">
                 <Share2 className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground ml-2">مشاركة:</span>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => sharePost('whatsapp')}
-                  className="text-green-600 hover:bg-green-50"
-                >
-                  واتساب
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => sharePost('facebook')}
-                  className="text-blue-600 hover:bg-blue-50"
-                >
-                  فيسبوك
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => sharePost('twitter')}
-                  className="text-sky-600 hover:bg-sky-50"
-                >
-                  تويتر
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => sharePost('instagram')}
-                  className="text-pink-600 hover:bg-pink-50"
-                >
-                  انستقرام
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => sharePost('whatsapp')}
+                    className="text-green-600 hover:bg-green-50 border-green-200"
+                  >
+                    واتساب
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => sharePost('facebook')}
+                    className="text-blue-600 hover:bg-blue-50 border-blue-200"
+                  >
+                    فيسبوك
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => sharePost('twitter')}
+                    className="text-sky-600 hover:bg-sky-50 border-sky-200"
+                  >
+                    تويتر
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             
-            <CardContent>
-              <div 
-                className="prose prose-lg max-w-none text-foreground mb-8"
-                style={{ 
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: '1.8',
-                  fontSize: '16px'
+            <CardContent className="p-8">
+              {/* محتوى التدوينة مع تنسيق محسن */}
+              <article 
+                className="prose prose-lg max-w-none text-foreground mb-8 leading-relaxed"
+                dangerouslySetInnerHTML={{ 
+                  __html: renderMarkdown(post.content)
                 }}
-              >
-                {post.content}
-              </div>
+                style={{ 
+                  fontSize: '17px',
+                  lineHeight: '1.8'
+                }}
+              />
 
-              {/* Links and Sources Section */}
+              {/* قسم المصادر والروابط */}
               {post.links && post.links.length > 0 && (
-                <div className="border-t pt-6">
-                  <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-                    <ExternalLink className="h-5 w-5" />
-                    المصادر والروابط
+                <div className="mt-12 pt-8 border-t bg-muted/20 rounded-lg p-6">
+                  <h3 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+                    <ExternalLink className="h-6 w-6 text-primary" />
+                    المصادر والروابط المفيدة
                   </h3>
-                  <div className="grid gap-3">
+                  <div className="grid gap-4">
                     {post.links.map((link, index) => (
                       <a
                         key={index}
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group"
+                        className="flex items-center gap-4 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all duration-200 group hover:border-primary/50 bg-background"
                       >
-                        <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-                        <div className="flex-1">
-                          <span className="font-medium text-foreground group-hover:text-primary">
+                        <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <ExternalLink className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors text-lg mb-1">
                             {link.title}
-                          </span>
-                          <div className="text-sm text-muted-foreground mt-1">
+                          </h4>
+                          <p className="text-sm text-muted-foreground truncate">
                             {link.url}
-                          </div>
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
                         </div>
                       </a>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* معلومات إضافية عن التدوينة */}
+              <div className="mt-8 pt-6 border-t text-sm text-muted-foreground">
+                <div className="flex flex-wrap gap-4">
+                  <span>تاريخ الإنشاء: {formatDate(post.created_at)}</span>
+                  {post.updated_at !== post.created_at && (
+                    <span>آخر تحديث: {formatDate(post.updated_at)}</span>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

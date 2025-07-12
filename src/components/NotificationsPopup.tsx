@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Info, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
+import { Bell, X, Info, AlertTriangle, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Notification {
   id: string;
@@ -47,6 +48,7 @@ export default function NotificationsPopup() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadNotifications();
@@ -74,6 +76,58 @@ export default function NotificationsPopup() {
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      setNotifications(notifications.filter(n => n.id !== notificationId));
+      
+      toast({
+        title: 'تم الحذف',
+        description: 'تم حذف الإشعار بنجاح',
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في حذف الإشعار',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!confirm('هل أنت متأكد من حذف جميع الإشعارات؟')) return;
+
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .gt('expires_at', new Date().toISOString());
+
+      if (error) throw error;
+
+      setNotifications([]);
+      
+      toast({
+        title: 'تم الحذف',
+        description: 'تم حذف جميع الإشعارات بنجاح',
+      });
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+      toast({
+        title: 'خطأ',
+        description: 'فشل في حذف الإشعارات',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -82,7 +136,9 @@ export default function NotificationsPopup() {
     if (diffInMinutes < 1) return 'الآن';
     if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
     if (diffInMinutes < 1440) return `منذ ${Math.floor(diffInMinutes / 60)} ساعة`;
-    return `منذ ${Math.floor(diffInMinutes / 1440)} يوم`;
+    
+    // تنسيق التاريخ الجديد 2025/6/11
+    return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
   };
 
   return (
@@ -120,9 +176,20 @@ export default function NotificationsPopup() {
               </CardTitle>
               <div className="flex items-center gap-2">
                 {notifications.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {notifications.length}
-                  </Badge>
+                  <>
+                    <Badge variant="secondary" className="text-xs">
+                      {notifications.length}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearAllNotifications}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      title="حذف الكل"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
                 )}
                 <Button
                   variant="ghost"
@@ -153,7 +220,7 @@ export default function NotificationsPopup() {
                   {notifications.map((notification, index) => (
                     <div
                       key={notification.id}
-                      className="p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in smooth-interaction"
+                      className="p-3 rounded-lg border hover:bg-muted/50 transition-colors animate-fade-in smooth-interaction"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <div className="flex items-start gap-3">
@@ -163,12 +230,22 @@ export default function NotificationsPopup() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <h4 className="font-medium text-sm truncate">{notification.title}</h4>
-                            <Badge 
-                              variant={getNotificationBadgeVariant(notification.type)}
-                              className="text-xs flex-shrink-0"
-                            >
-                              {notification.type}
-                            </Badge>
+                            <div className="flex items-center gap-1">
+                              <Badge 
+                                variant={getNotificationBadgeVariant(notification.type)}
+                                className="text-xs flex-shrink-0"
+                              >
+                                {notification.type}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteNotification(notification.id)}
+                                className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                             {notification.message}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Edit, Plus, Eye, Link as LinkIcon, X } from 'lucide-react';
+import { Trash2, Edit, Plus, Eye, Link as LinkIcon, X, Bold, Italic, List, Heading } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BlogLink {
@@ -71,6 +72,10 @@ export const BlogManager: React.FC = () => {
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
 
+  // Text formatting state
+  const [selectedText, setSelectedText] = useState('');
+  const [textareaRef, setTextareaRef] = useState<HTMLTextAreaElement | null>(null);
+
   useEffect(() => {
     loadPosts();
     loadCategories();
@@ -82,7 +87,6 @@ export const BlogManager: React.FC = () => {
         .from('blog_posts')
         .select(`
           *,
-          links,
           blog_categories (
             name
           )
@@ -91,10 +95,10 @@ export const BlogManager: React.FC = () => {
 
       if (error) throw error;
       
-      // Ensure all posts have the links property, even if null
+      // تحويل البيانات لتتطابق مع BlogPost interface
       const postsWithLinks = (data || []).map(post => ({
         ...post,
-        links: post.links || null
+        links: Array.isArray(post.links) ? post.links : null
       }));
       
       setPosts(postsWithLinks);
@@ -148,6 +152,48 @@ export const BlogManager: React.FC = () => {
     setPostLinks(postLinks.filter((_, i) => i !== index));
   };
 
+  // وظائف تنسيق النص
+  const insertTextFormat = (format: string) => {
+    if (!textareaRef) return;
+    
+    const start = textareaRef.selectionStart;
+    const end = textareaRef.selectionEnd;
+    const selectedText = postContent.substring(start, end);
+    
+    let formattedText = '';
+    switch (format) {
+      case 'bold':
+        formattedText = `**${selectedText || 'نص غامق'}**`;
+        break;
+      case 'italic':
+        formattedText = `*${selectedText || 'نص مائل'}*`;
+        break;
+      case 'heading':
+        formattedText = `## ${selectedText || 'عنوان'}`;
+        break;
+      case 'list':
+        formattedText = `- ${selectedText || 'عنصر قائمة'}`;
+        break;
+      case 'link':
+        formattedText = `[${selectedText || 'نص الرابط'}](https://example.com)`;
+        break;
+      case 'code':
+        formattedText = `\`${selectedText || 'كود'}\``;
+        break;
+    }
+
+    const newContent = postContent.substring(0, start) + formattedText + postContent.substring(end);
+    setPostContent(newContent);
+    
+    // إعادة تركيز المؤشر
+    setTimeout(() => {
+      if (textareaRef) {
+        textareaRef.focus();
+        textareaRef.setSelectionRange(start + formattedText.length, start + formattedText.length);
+      }
+    }, 0);
+  };
+
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -160,7 +206,7 @@ export const BlogManager: React.FC = () => {
         category_id: postCategoryId === 'no-category' ? null : postCategoryId || null,
         is_published: postIsPublished,
         is_featured: postIsFeatured,
-        links: postLinks.length > 0 ? postLinks : null,
+        links: postLinks.length > 0 ? JSON.stringify(postLinks) : null,
       };
 
       if (editingPost) {
@@ -343,6 +389,11 @@ export const BlogManager: React.FC = () => {
     }
   };
 
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Posts Management */}
@@ -404,14 +455,78 @@ export const BlogManager: React.FC = () => {
 
                   <div>
                     <Label htmlFor="postContent">محتوى التدوينة *</Label>
+                    
+                    {/* شريط أدوات التنسيق */}
+                    <div className="flex gap-2 mb-2 p-2 border rounded-md bg-muted">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => insertTextFormat('bold')}
+                        title="نص غامق"
+                      >
+                        <Bold className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => insertTextFormat('italic')}
+                        title="نص مائل"
+                      >
+                        <Italic className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => insertTextFormat('heading')}
+                        title="عنوان"
+                      >
+                        <Heading className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => insertTextFormat('list')}
+                        title="قائمة"
+                      >
+                        <List className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => insertTextFormat('link')}
+                        title="رابط"
+                      >
+                        <LinkIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => insertTextFormat('code')}
+                        title="كود"
+                      >
+                        {'</>'}
+                      </Button>
+                    </div>
+
                     <Textarea
                       id="postContent"
+                      ref={setTextareaRef}
                       value={postContent}
                       onChange={(e) => setPostContent(e.target.value)}
-                      placeholder="اكتب محتوى التدوينة هنا..."
-                      rows={10}
+                      placeholder="اكتب محتوى التدوينة هنا... يمكنك استخدام Markdown للتنسيق"
+                      rows={15}
                       required
+                      className="font-mono"
                     />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      يمكنك استخدام تنسيق Markdown: **غامق** *مائل* ## عنوان - قائمة
+                    </p>
                   </div>
 
                   {/* Links Section */}
@@ -444,10 +559,12 @@ export const BlogManager: React.FC = () => {
                     {postLinks.length > 0 && (
                       <div className="space-y-2">
                         {postLinks.map((link, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
-                            <LinkIcon className="h-4 w-4" />
-                            <span className="flex-1">{link.title}</span>
-                            <span className="text-sm text-muted-foreground">{link.url}</span>
+                          <div key={index} className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                            <LinkIcon className="h-4 w-4 text-primary" />
+                            <div className="flex-1">
+                              <span className="font-medium">{link.title}</span>
+                              <div className="text-sm text-muted-foreground">{link.url}</div>
+                            </div>
                             <Button
                               type="button"
                               variant="ghost"
@@ -508,6 +625,12 @@ export const BlogManager: React.FC = () => {
                       <p className="text-sm text-muted-foreground mt-1">
                         {post.excerpt || 'لا يوجد مقتطف'}
                       </p>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                        <span>تاريخ الإنشاء: {formatDate(post.created_at)}</span>
+                        {post.published_at && (
+                          <span>تاريخ النشر: {formatDate(post.published_at)}</span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 mt-2">
                         {post.blog_categories && (
                           <Badge variant="secondary">{post.blog_categories.name}</Badge>
